@@ -87,7 +87,14 @@ export default function ProductEntry() {
     };
 
     const handleAdd = () => {
-        if (!name || !price || !currentStoreId) return;
+        if (!name || !price || !currentStoreId || !quantity) return;
+
+        const quantityValue = parseFloat(quantity);
+        const priceValue = parseFloat(price);
+
+        if (Number.isNaN(quantityValue) || Number.isNaN(priceValue) || quantityValue <= 0 || priceValue <= 0) {
+            return;
+        }
 
         let product: Product | undefined = undefined;
 
@@ -109,9 +116,18 @@ export default function ProductEntry() {
             addProduct(product);
         }
 
-        addItem(product, currentStoreId, parseFloat(quantity), parseFloat(price));
+        const unitPrice = isLoose ? priceValue / quantityValue : priceValue;
+
+        addItem(product, currentStoreId, quantityValue, unitPrice);
         handleClose();
     };
+
+    const priceLabel = isLoose ? 'Line Total' : 'Unit Price';
+    const helperText = isLoose
+        ? 'Enter the total from the scale/deli. Unit price will be calculated.'
+        : 'Price per individual unit or package.';
+
+    const isAddDisabled = !name || !price || !quantity || Number(quantity) <= 0 || Number(price) <= 0;
 
     return (
         <Box sx={{ position: 'fixed', bottom: 16, right: 16, left: 16 }}>
@@ -157,7 +173,7 @@ export default function ProductEntry() {
 
                             <Box sx={{ display: 'flex', gap: 2 }}>
                                 <TextField
-                                    label="Price"
+                                    label={priceLabel}
                                     type="number"
                                     value={price}
                                     onChange={(e) => setPrice(e.target.value)}
@@ -165,6 +181,7 @@ export default function ProductEntry() {
                                     InputProps={{
                                         startAdornment: <InputAdornment position="start">$</InputAdornment>,
                                     }}
+                                    helperText={helperText}
                                 />
                                 <TextField
                                     label="Quantity"
@@ -202,7 +219,7 @@ export default function ProductEntry() {
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={handleClose}>Cancel</Button>
-                    <Button onClick={handleAdd} variant="contained" disabled={!name || !price}>
+                    <Button onClick={handleAdd} variant="contained" disabled={isAddDisabled}>
                         Add to Cart
                     </Button>
                 </DialogActions>

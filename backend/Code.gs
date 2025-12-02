@@ -1,3 +1,31 @@
+const SHEET_CONFIG = {
+  Store_Master: ['StoreID', 'StoreName', 'LocationText', 'GPS_Lat', 'GPS_Lon', 'LastUsed'],
+  Product_Master: ['ProductID', 'Barcode', 'Name', 'SizeValue', 'SizeUnit', 'IsLoose'],
+  Purchase_History: ['LogID', 'TripID', 'Timestamp', 'StoreID_FK', 'ProductID_FK', 'Quantity', 'Unit_Price', 'Line_Total'],
+};
+
+/**
+ * Run this once after pasting the script to create all tabs with headers.
+ */
+function initializeSheets() {
+  const ss = getBoundSpreadsheet();
+  const { created, withHeaders } = ensureAllSheets(ss);
+  const createdList = created.length ? created.join(', ') : 'none (already existed)';
+  const headersFixed = withHeaders.length ? `Headers added to: ${withHeaders.join(', ')}` : 'All headers already present';
+  const summary = `Sheets initialized. Created: ${createdList}. ${headersFixed}.`;
+
+  Logger.log(summary);
+  try {
+    ss.toast(summary, 'Grocery Companion', 5);
+    SpreadsheetApp.getUi().alert(summary);
+  } catch (err) {
+    // Alerts/toasts are UI-only and may fail when run without a UI (e.g., via API).
+    Logger.log('UI notification skipped: ' + err);
+  }
+
+  return summary;
+}
+
 function doPost(e) {
   try {
     const data = JSON.parse(e.postData.contents);
@@ -9,13 +37,7 @@ function doPost(e) {
     }
 
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    let historySheet = ss.getSheetByName('Purchase_History');
-    
-    // Create sheet if not exists
-    if (!historySheet) {
-      historySheet = ss.insertSheet('Purchase_History');
-      historySheet.appendRow(['LogID', 'TripID', 'Timestamp', 'StoreID_FK', 'ProductID_FK', 'Quantity', 'Unit_Price', 'Line_Total']);
-    }
+    const historySheet = ensureAllSheets(ss).Purchase_History;
 
     const timestamp = new Date().toISOString();
     const rows = items.map(item => {
@@ -45,6 +67,45 @@ function doPost(e) {
 }
 
 function doGet(e) {
-    return ContentService.createTextOutput(JSON.stringify({ status: 'ready', message: 'Grocery Companion API is running' }))
-      .setMimeType(ContentService.MimeType.JSON);
+  const ss = getBoundSpreadsheet();
+  const { sheets } = ensureAllSheets(ss);
+  const message = 'Grocery Companion API is running';
+
+  return ContentService.createTextOutput(JSON.stringify({
+    status: 'ready',
+    message,
+    sheets: Object.keys(sheets),
+  }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function ensureAllSheets(ss) {
+  const created = [];
+  const withHeaders = [];
+  const sheets = {};
+
+  Object.entries(SHEET_CONFIG).forEach(([name, headers]) => {
+    let sheet = ss.getSheetByName(name);
+    if (!sheet) {
+      sheet = ss.insertSheet(name);
+      created.push(name);
+    }
+
+    if (sheet.getLastRow() === 0) {
+      sheet.appendRow(headers);
+      withHeaders.push(name);
+    }
+
+    sheets[name] = sheet;
+  });
+
+  return { created, withHeaders, sheets };
+}
+
+function getBoundSpreadsheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss) {
+    throw new Error('No active spreadsheet found. Open Extensions → Apps Script from a Google Sheet and run again.');
+  }
+  return ss;
 }
