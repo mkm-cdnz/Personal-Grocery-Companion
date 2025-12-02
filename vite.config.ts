@@ -4,7 +4,9 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: '/grocery-companion/',
+  // Use relative asset URLs so the app can be hosted from any bucket folder
+  // (e.g., https://storage.googleapis.com/web-visualisations/grocery-companion/).
+  base: './',
   plugins: [
     react(),
     VitePWA({
