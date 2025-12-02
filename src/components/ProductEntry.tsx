@@ -44,21 +44,35 @@ export default function ProductEntry() {
     };
 
     useEffect(() => {
+        let timeoutId: NodeJS.Timeout;
+
         if (open && tabIndex === 0) {
-            // Initialize scanner
-            const newScanner = new Html5QrcodeScanner(
-                "reader",
-                { fps: 10, qrbox: { width: 250, height: 250 } },
-              /* verbose= */ false
-            );
-            newScanner.render(onScanSuccess, onScanFailure);
-            setScanner(newScanner);
+            // Wait for Dialog to fully render the #reader div
+            timeoutId = setTimeout(() => {
+                if (!document.getElementById('reader')) {
+                    console.warn("Scanner element 'reader' not found");
+                    return;
+                }
+
+                try {
+                    const newScanner = new Html5QrcodeScanner(
+                        "reader",
+                        { fps: 10, qrbox: { width: 250, height: 250 } },
+                        /* verbose= */ false
+                    );
+                    newScanner.render(onScanSuccess, onScanFailure);
+                    setScanner(newScanner);
+                } catch (e) {
+                    console.error("Failed to initialize scanner", e);
+                }
+            }, 300); // 300ms delay for Dialog transition
         } else if (scanner) {
             scanner.clear().catch(console.error);
             setScanner(null);
         }
 
         return () => {
+            clearTimeout(timeoutId);
             if (scanner) {
                 scanner.clear().catch(console.error);
             }
