@@ -38,3 +38,5 @@ jobs:
           path: 'dist'
           destination: '${{ secrets.GCP_BUCKET_NAME }}/grocery-companion'
           parent: false # Do not include the 'dist' folder name in the destination
+          predefinedAcl: 'publicRead' # Make files publicly accessible
+          gzip: false
