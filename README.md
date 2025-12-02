@@ -53,9 +53,9 @@ The shared sheet for this project lives at:
 
 Follow these steps to make it ready for syncing trips:
 
-1. Open the sheet link above and make sure you have edit access (if not, use **File → Make a copy** into your Drive).
-2. Go to **Extensions → Apps Script**, paste the contents of `backend/Code.gs` (replacing any existing code), and save the project.
-3. In the Apps Script editor, select and run the `initializeSheets` function once. It will report which tabs were created and which headers were added in the execution log. The `Store_Master`, `Product_Master`, and `Purchase_History` tabs should appear in your sheet; rerun if you delete any of them.
+1. Open the sheet link above and go to **Extensions → Apps Script**.
+2. Paste the contents of `backend/Code.gs` (replacing any existing code). Save the project.
+3. In the Apps Script editor, run the `initializeSheets` function once. This creates the `Store_Master`, `Product_Master`, and `Purchase_History` tabs with header rows if they are missing.
 4. Deploy as a **Web App** (select **Anyone** access). Copy the **Current web app URL** from the deployment.
 5. Create a `.env` file in the project root with your Web App URL:
 
@@ -66,14 +66,6 @@ Follow these steps to make it ready for syncing trips:
 
 6. Update `VITE_GAS_WEB_APP_URL` inside `.env` with the Web App URL you copied.
 7. Restart the dev server so Vite picks up the new environment variable.
-
-### Troubleshooting `initializeSheets`
-
-- Make sure you opened Apps Script **from within the Sheet** (`Extensions → Apps Script`). Running the script from https://script.google.com without being bound to the Sheet will not have an active spreadsheet to edit.
-- Confirm you have **edit access** to the Sheet (view-only access will silently skip tab creation). If needed, **File → Make a copy** and run the script in the copy.
-- In Apps Script, select the `initializeSheets` function in the toolbar, click **Run**, and accept the permissions prompt. Check the **Executions** panel and the **Logs** tab for the summary message.
-- After running, your Sheet should contain the `Store_Master`, `Product_Master`, and `Purchase_History` tabs with headers. If not, rerun and watch for an error about "No active spreadsheet found"—this indicates the script isn't bound to the Sheet you expect.
-
 
 ## Deployment
 

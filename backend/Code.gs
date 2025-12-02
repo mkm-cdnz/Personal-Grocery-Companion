@@ -8,22 +8,9 @@ const SHEET_CONFIG = {
  * Run this once after pasting the script to create all tabs with headers.
  */
 function initializeSheets() {
-  const ss = getBoundSpreadsheet();
-  const { created, withHeaders } = ensureAllSheets(ss);
-  const createdList = created.length ? created.join(', ') : 'none (already existed)';
-  const headersFixed = withHeaders.length ? `Headers added to: ${withHeaders.join(', ')}` : 'All headers already present';
-  const summary = `Sheets initialized. Created: ${createdList}. ${headersFixed}.`;
-
-  Logger.log(summary);
-  try {
-    ss.toast(summary, 'Grocery Companion', 5);
-    SpreadsheetApp.getUi().alert(summary);
-  } catch (err) {
-    // Alerts/toasts are UI-only and may fail when run without a UI (e.g., via API).
-    Logger.log('UI notification skipped: ' + err);
-  }
-
-  return summary;
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  ensureAllSheets(ss);
+  return 'Sheets initialized';
 }
 
 function doPost(e) {
@@ -67,8 +54,8 @@ function doPost(e) {
 }
 
 function doGet(e) {
-  const ss = getBoundSpreadsheet();
-  const { sheets } = ensureAllSheets(ss);
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheets = ensureAllSheets(ss);
   const message = 'Grocery Companion API is running';
 
   return ContentService.createTextOutput(JSON.stringify({
@@ -80,32 +67,18 @@ function doGet(e) {
 }
 
 function ensureAllSheets(ss) {
-  const created = [];
-  const withHeaders = [];
-  const sheets = {};
+  const created = {};
 
   Object.entries(SHEET_CONFIG).forEach(([name, headers]) => {
     let sheet = ss.getSheetByName(name);
     if (!sheet) {
       sheet = ss.insertSheet(name);
-      created.push(name);
-    }
-
-    if (sheet.getLastRow() === 0) {
       sheet.appendRow(headers);
-      withHeaders.push(name);
+    } else if (sheet.getLastRow() === 0) {
+      sheet.appendRow(headers);
     }
-
-    sheets[name] = sheet;
+    created[name] = sheet;
   });
 
-  return { created, withHeaders, sheets };
-}
-
-function getBoundSpreadsheet() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  if (!ss) {
-    throw new Error('No active spreadsheet found. Open Extensions → Apps Script from a Google Sheet and run again.');
-  }
-  return ss;
+  return created;
 }
