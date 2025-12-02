@@ -47,12 +47,25 @@ npm run build
 
 ## Setup Google Sheets Backend
 
-1. Create a new Google Sheet
-2. Go to **Extensions > Apps Script**
-3. Copy the content from `backend/Code.gs`
-4. Deploy as a **Web App** (Anyone can access)
-5. Copy the Web App URL
-6. Update `src/services/api.ts` with your URL
+The shared sheet for this project lives at:
+
+- https://docs.google.com/spreadsheets/d/1JjLe8svmOiJ40zBdcOSXr7rfm-zr1h9U9qh90fsktqU/edit?usp=sharing
+
+Follow these steps to make it ready for syncing trips:
+
+1. Open the sheet link above and make sure you have edit access (if not, use **File → Make a copy** into your Drive).
+2. Go to **Extensions → Apps Script**, paste the contents of `backend/Code.gs` (replacing any existing code), and save the project.
+3. In the Apps Script editor, select and run the `initializeSheets` function once. It will report which tabs were created and which headers were added in the execution log. The `Store_Master`, `Product_Master`, and `Purchase_History` tabs should appear in your sheet; rerun if you delete any of them.
+4. Deploy as a **Web App** (select **Anyone** access). Copy the **Current web app URL** from the deployment.
+5. Create a `.env` file in the project root with your Web App URL:
+
+    ```bash
+    cp .env.example .env
+    # edit .env to paste your URL
+    ```
+
+6. Update `VITE_GAS_WEB_APP_URL` inside `.env` with the Web App URL you copied.
+7. Restart the dev server so Vite picks up the new environment variable.
 
 ## Deployment
 
