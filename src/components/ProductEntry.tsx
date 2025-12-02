@@ -44,7 +44,7 @@ export default function ProductEntry() {
     };
 
     useEffect(() => {
-        let timeoutId: NodeJS.Timeout;
+        let timeoutId: ReturnType<typeof setTimeout>;
 
         if (open && tabIndex === 0) {
             // Wait for Dialog to fully render the #reader div
