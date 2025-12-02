@@ -22,7 +22,7 @@ import { useCartStore } from '../store/useCartStore';
 import type { Store } from '../types';
 
 export default function StoreSelector() {
-    const { stores, addStore } = useReferenceStore();
+    const { stores, addStore, storeExists, updateStoreLastUsed } = useReferenceStore();
     const { startTrip } = useCartStore();
 
     const [open, setOpen] = useState(false);
@@ -30,8 +30,10 @@ export default function StoreSelector() {
     const [newLocation, setNewLocation] = useState('');
     const [loadingLocation, setLoadingLocation] = useState(false);
     const [locationError, setLocationError] = useState<string | null>(null);
+    const [validationError, setValidationError] = useState<string | null>(null);
 
     const handleStoreSelect = (storeId: string) => {
+        updateStoreLastUsed(storeId, new Date().toISOString());
         startTrip(storeId);
     };
 
@@ -40,13 +42,21 @@ export default function StoreSelector() {
         setNewStoreName('');
         setNewLocation('');
         setLocationError(null);
+        setValidationError(null);
     };
 
     const handleSaveStore = () => {
         if (!newStoreName || !newLocation) return;
 
+        setValidationError(null);
         setLoadingLocation(true);
         setLocationError(null);
+
+        if (storeExists(newStoreName, newLocation)) {
+            setValidationError('Store with this name and location already exists.');
+            setLoadingLocation(false);
+            return;
+        }
 
         if (!navigator.geolocation) {
             saveStoreWithCoords(0, 0); // Fallback if no geo
@@ -147,6 +157,9 @@ export default function StoreSelector() {
                         value={newLocation}
                         onChange={(e) => setNewLocation(e.target.value)}
                     />
+                    {validationError && (
+                        <Alert severity="error" sx={{ mt: 2 }}>{validationError}</Alert>
+                    )}
                     {locationError && (
                         <Alert severity="warning" sx={{ mt: 2 }}>{locationError}</Alert>
                     )}
