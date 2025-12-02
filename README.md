@@ -53,9 +53,9 @@ The shared sheet for this project lives at:
 
 Follow these steps to make it ready for syncing trips:
 
-1. Open the sheet link above and make sure you have edit access (if not, use **File → Make a copy** into your Drive).
-2. Go to **Extensions → Apps Script**, paste the contents of `backend/Code.gs` (replacing any existing code), and save the project.
-3. In the Apps Script editor, select and run the `initializeSheets` function once. It will report which tabs were created and which headers were added in the execution log. The `Store_Master`, `Product_Master`, and `Purchase_History` tabs should appear in your sheet; rerun if you delete any of them.
+1. Open the sheet link above and go to **Extensions → Apps Script**.
+2. Paste the contents of `backend/Code.gs` (replacing any existing code). Save the project.
+3. In the Apps Script editor, run the `initializeSheets` function once. This creates the `Store_Master`, `Product_Master`, and `Purchase_History` tabs with header rows if they are missing.
 4. Deploy as a **Web App** (select **Anyone** access). Copy the **Current web app URL** from the deployment.
 5. Create a `.env` file in the project root with your Web App URL:
 
