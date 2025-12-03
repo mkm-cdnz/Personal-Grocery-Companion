@@ -1,29 +1,73 @@
 import type { CartItem } from '../types';
 
-// Hardcoded URL for immediate functionality. In a production environment, this should be an env var.
-const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzfiOpEWCvMZuSUbwoj6FAI95iy14N2nwtWSCEkqOEtbsfC4W1vQK1VRDnydvIZi15r/exec';
+export class SyncError extends Error {
+    status?: number;
+    responseBody?: string;
+
+    constructor(message: string, status?: number, responseBody?: string) {
+        super(message);
+        this.name = 'SyncError';
+        this.status = status;
+        this.responseBody = responseBody;
+    }
+}
+
+// Allow overriding via env so the frontend can be pointed at a freshly redeployed Apps Script URL without code edits.
+const GAS_WEB_APP_URL = import.meta.env.VITE_GAS_WEB_APP_URL
+    || 'https://script.google.com/macros/s/AKfycbxpor4UO2g7Xwc5EUn0IdqO-VGvRSCK7NxubVyI9eL_BBx_cY7tpG7RHEEr2euo2nV6/exec';
+
+const parseResponse = async (response: Response) => {
+    const contentType = response.headers.get('content-type') || '';
+
+    if (contentType.includes('application/json')) {
+        return response.json();
+    }
+
+    // Fall back to text to capture error pages (e.g., HTML) so we can surface meaningful diagnostics.
+    return response.text();
+};
 
 export const api = {
     syncTrip: async (tripId: string, storeId: string, items: CartItem[]) => {
         if (!GAS_WEB_APP_URL) {
-            throw new Error('Missing GAS Web App URL.');
+            throw new SyncError('Missing GAS Web App URL.');
         }
         try {
-            await fetch(GAS_WEB_APP_URL, {
+            const response = await fetch(GAS_WEB_APP_URL, {
                 method: 'POST',
-                mode: 'no-cors', // GAS Web Apps often require no-cors for simple POSTs from different origins unless configured perfectly
+                mode: 'cors',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({ tripId, storeId, items }),
             });
 
-            // With no-cors, we can't read the response, so we assume success if no network error.
-            // For a robust app, we might use a proxy or different CORS setup, but for this MVP:
-            return { status: 'success' };
+            const parsed = await parseResponse(response);
+            const result = typeof parsed === 'string' ? { status: 'error', message: parsed } : parsed;
+            const bodyText = typeof parsed === 'string' ? parsed : JSON.stringify(parsed);
+
+            if (!response.ok) {
+                // Common 403 case means the Apps Script deployment is not accessible to "Anyone" or a proxy blocked the call.
+                const message = response.status === 403
+                    ? 'The Google Apps Script deployment rejected the request (HTTP 403). Confirm the active deployment has "Anyone" access and has been redeployed with the latest Code.gs.'
+                    : `Sync request failed (${response.status} ${response.statusText}): ${result?.message || 'Unknown error'}`;
+                throw new SyncError(message, response.status, bodyText);
+            }
+
+            if (result?.status !== 'success') {
+                throw new SyncError(result?.message || 'Sync failed', response.status, bodyText);
+            }
+
+            return result;
         } catch (error) {
-            console.error("Sync error:", error);
-            throw error;
+            console.error('Sync error:', error);
+            if (error instanceof SyncError) {
+                throw error;
+            }
+
+            // Ensure unexpected errors still include context for the snackbar.
+            const fallbackMessage = error instanceof Error ? error.message : 'Unknown sync error';
+            throw new SyncError(fallbackMessage);
         }
     }
 };
