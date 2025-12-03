@@ -19,8 +19,8 @@ function doPost(e) {
     const { tripId, storeId, items } = data;
 
     if (!tripId || !storeId || !items || !Array.isArray(items)) {
-      return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: 'Invalid payload' }))
-        .setMimeType(ContentService.MimeType.JSON);
+      return withCors(ContentService.createTextOutput(JSON.stringify({ status: 'error', message: 'Invalid payload' }))
+        .setMimeType(ContentService.MimeType.JSON));
     }
 
     const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -44,26 +44,48 @@ function doPost(e) {
       historySheet.getRange(historySheet.getLastRow() + 1, 1, rows.length, rows[0].length).setValues(rows);
     }
 
-    return ContentService.createTextOutput(JSON.stringify({ status: 'success', rowsAdded: rows.length }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return withCors(ContentService.createTextOutput(JSON.stringify({ status: 'success', rowsAdded: rows.length }))
+      .setMimeType(ContentService.MimeType.JSON));
 
   } catch (error) {
-    return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: error.toString() }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return withCors(ContentService.createTextOutput(JSON.stringify({ status: 'error', message: error.toString() }))
+      .setMimeType(ContentService.MimeType.JSON));
   }
 }
 
 function doGet(e) {
+  if (e && e.parameter && e.parameter.action === 'sync' && e.parameter.payload) {
+    try {
+      const decoded = Utilities.newBlob(Utilities.base64Decode(e.parameter.payload)).getDataAsString();
+      const data = JSON.parse(decoded);
+      return handleSync(data);
+    } catch (error) {
+      return withCors(ContentService.createTextOutput(JSON.stringify({ status: 'error', message: error.toString() }))
+        .setMimeType(ContentService.MimeType.JSON));
+    }
+  }
+
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheets = ensureAllSheets(ss);
   const message = 'Grocery Companion API is running';
 
-  return ContentService.createTextOutput(JSON.stringify({
+  return withCors(ContentService.createTextOutput(JSON.stringify({
     status: 'ready',
     message,
     sheets: Object.keys(sheets),
   }))
-    .setMimeType(ContentService.MimeType.JSON);
+    .setMimeType(ContentService.MimeType.JSON));
+}
+
+function doOptions() {
+  return withCors(ContentService.createTextOutput(''));
+}
+
+function withCors(output) {
+  return output
+    .setHeader('Access-Control-Allow-Origin', '*')
+    .setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+    .setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
 function ensureAllSheets(ss) {
@@ -81,4 +103,37 @@ function ensureAllSheets(ss) {
   });
 
   return created;
+}
+
+function handleSync(data) {
+  const { tripId, storeId, items } = data;
+
+  if (!tripId || !storeId || !items || !Array.isArray(items)) {
+    return withCors(ContentService.createTextOutput(JSON.stringify({ status: 'error', message: 'Invalid payload' }))
+      .setMimeType(ContentService.MimeType.JSON));
+  }
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const historySheet = ensureAllSheets(ss).Purchase_History;
+
+  const timestamp = new Date().toISOString();
+  const rows = items.map(item => {
+    return [
+      Utilities.getUuid(), // LogID
+      tripId,
+      timestamp,
+      storeId,
+      item.product.ProductID,
+      item.quantity,
+      item.unitPrice,
+      item.lineTotal
+    ];
+  });
+
+  if (rows.length > 0) {
+    historySheet.getRange(historySheet.getLastRow() + 1, 1, rows.length, rows[0].length).setValues(rows);
+  }
+
+  return withCors(ContentService.createTextOutput(JSON.stringify({ status: 'success', rowsAdded: rows.length }))
+    .setMimeType(ContentService.MimeType.JSON));
 }

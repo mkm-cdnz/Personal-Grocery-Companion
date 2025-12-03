@@ -64,12 +64,15 @@ Follow these steps to make it ready for syncing trips:
     # edit .env to paste your URL
     ```
 
-6. Update `VITE_GAS_WEB_APP_URL` inside `.env` with the Web App URL you copied.
+6. Update `VITE_GAS_WEB_APP_URL` inside `.env` (in the project root) with the Web App URL you copied so the frontend targets the correct deployment.
 7. Restart the dev server so Vite picks up the new environment variable.
 
 ## Deployment
 
 This project uses GitHub Actions to automatically deploy to Google Cloud Storage.
+
+The workflow expects `GCP_SA_KEY` and `GCP_BUCKET_NAME` to be configured as repository secrets. If either secret is missing, the
+deploy job fails immediately with a clear error so you know to correct the secret configuration.
 
 See `deployment_guide.md` for detailed setup instructions.
 
