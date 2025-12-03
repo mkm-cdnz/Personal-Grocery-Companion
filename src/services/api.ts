@@ -36,7 +36,6 @@ export const api = {
             const response = await fetch(GAS_WEB_APP_URL, {
                 method: 'POST',
                 mode: 'cors',
-                credentials: 'omit',
                 headers: {
                     'Content-Type': 'application/json',
                 },
@@ -64,13 +63,6 @@ export const api = {
             console.error('Sync error:', error);
             if (error instanceof SyncError) {
                 throw error;
-            }
-
-            if (error instanceof TypeError && error.message === 'Failed to fetch') {
-                throw new SyncError(
-                    'Network request failed before reaching Google Apps Script. This is usually caused by CORS blocking the request or an unreachable Web App URL. '
-                    + 'Confirm the deployment URL is correct, redeploy if needed, and ensure the app is loaded over HTTPS.',
-                );
             }
 
             // Ensure unexpected errors still include context for the snackbar.
