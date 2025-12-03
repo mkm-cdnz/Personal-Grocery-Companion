@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AppBar, Toolbar, Typography, Container, Box, IconButton, Button, CircularProgress, Snackbar, Alert } from '@mui/material';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
@@ -6,16 +6,41 @@ import { useCartStore } from '../store/useCartStore';
 import StoreSelector from './StoreSelector';
 import Cart from './Cart';
 import ProductEntry from './ProductEntry';
-import { api } from '../services/api';
+import { api, SyncError } from '../services/api';
 
 export default function Layout() {
     const { currentStoreId, tripId, items, clearCart } = useCartStore();
     const [syncing, setSyncing] = useState(false);
+    const [health, setHealth] = useState<{ status: 'idle' | 'ok' | 'error', message?: string }>({ status: 'idle' });
     const [snackbar, setSnackbar] = useState<{ open: boolean, message: string, severity: 'success' | 'error' }>({
         open: false,
         message: '',
         severity: 'success'
     });
+
+    useEffect(() => {
+        let active = true;
+
+        const checkSyncHealth = async () => {
+            try {
+                const result = await api.checkHealth();
+                if (!active) return;
+                setHealth({ status: 'ok', message: result });
+            } catch (error) {
+                if (!active) return;
+                const message = error instanceof SyncError
+                    ? `${error.message}${error.responseBody ? ` Response: ${error.responseBody.slice(0, 120)}` : ''}`
+                    : (error as Error).message;
+                setHealth({ status: 'error', message });
+            }
+        };
+
+        checkSyncHealth();
+
+        return () => {
+            active = false;
+        };
+    }, []);
 
     const handleSync = async () => {
         if (!tripId || !currentStoreId) return;
@@ -31,7 +56,16 @@ export default function Layout() {
             }, 1500);
         } catch (error) {
             console.error(error);
-            setSnackbar({ open: true, message: 'Sync failed. Please try again.', severity: 'error' });
+            let message = 'Sync failed. Please try again.';
+
+            if (error instanceof SyncError) {
+                const responseDetails = error.responseBody ? ` Response: ${error.responseBody.slice(0, 200)}` : '';
+                message = `${error.message}${responseDetails}`;
+            } else if (error instanceof Error) {
+                message = error.message;
+            }
+
+            setSnackbar({ open: true, message, severity: 'error' });
             setSyncing(false);
         }
     };
@@ -50,6 +84,18 @@ export default function Layout() {
             </AppBar>
 
             <Container component="main" sx={{ mt: 2, mb: 2, flexGrow: 1 }}>
+                {health.status === 'error' && (
+                    <Alert severity="error" sx={{ mb: 2 }}>
+                        Sync endpoint is unreachable from this session. {health.message}
+                        {' '}Ensure the deployed Google Apps Script contains the latest Code.gs (including CORS headers and doOptions), then redeploy the web app with access set to "Anyone". Update VITE_GAS_WEB_APP_URL if the URL changed.
+                    </Alert>
+                )}
+                {health.status === 'ok' && (
+                    <Alert severity="success" sx={{ mb: 2 }}>
+                        Sync endpoint responded successfully. You can proceed with syncing trips.
+                    </Alert>
+                )}
+
                 {!currentStoreId ? (
                     <StoreSelector />
                 ) : (
