@@ -12,6 +12,10 @@ jobs:
       contents: 'read'
       id-token: 'write'
 
+    env:
+      GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+      GCP_BUCKET_NAME: ${{ secrets.GCP_BUCKET_NAME }}
+
     steps:
       - name: Check required secrets
         id: secrets
