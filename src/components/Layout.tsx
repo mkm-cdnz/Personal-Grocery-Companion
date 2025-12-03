@@ -31,7 +31,8 @@ export default function Layout() {
             }, 1500);
         } catch (error) {
             console.error(error);
-            setSnackbar({ open: true, message: 'Sync failed. Please try again.', severity: 'error' });
+            const errorMessage = error instanceof Error ? error.message : 'Sync failed. Please try again.';
+            setSnackbar({ open: true, message: errorMessage, severity: 'error' });
             setSyncing(false);
         }
     };
