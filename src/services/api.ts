@@ -1,12 +1,12 @@
 import type { CartItem } from '../types';
 
-// Set VITE_GAS_WEB_APP_URL in a .env file after deploying the Apps Script Web App.
-const GAS_WEB_APP_URL = import.meta.env.VITE_GAS_WEB_APP_URL as string | undefined;
+// Hardcoded URL for immediate functionality. In a production environment, this should be an env var.
+const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzfiOpEWCvMZuSUbwoj6FAI95iy14N2nwtWSCEkqOEtbsfC4W1vQK1VRDnydvIZi15r/exec';
 
 export const api = {
     syncTrip: async (tripId: string, storeId: string, items: CartItem[]) => {
         if (!GAS_WEB_APP_URL) {
-            throw new Error('Missing GAS Web App URL. Set VITE_GAS_WEB_APP_URL in your .env file.');
+            throw new Error('Missing GAS Web App URL.');
         }
         try {
             await fetch(GAS_WEB_APP_URL, {
