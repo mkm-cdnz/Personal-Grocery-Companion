@@ -12,7 +12,18 @@ jobs:
       contents: 'read'
       id-token: 'write'
 
+    env:
+      GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+      GCP_BUCKET_NAME: ${{ secrets.GCP_BUCKET_NAME }}
+
     steps:
+      - name: Validate deploy secrets
+        run: |
+          if [ -z "$GCP_SA_KEY" ] || [ -z "$GCP_BUCKET_NAME" ]; then
+            echo "::error::GCP_SA_KEY and GCP_BUCKET_NAME secrets must be configured for deploy."
+            exit 1
+          fi
+
       - name: Checkout
         uses: actions/checkout@v4
 
