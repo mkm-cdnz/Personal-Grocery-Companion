@@ -49,6 +49,10 @@ export const api = {
         if (!GAS_WEB_APP_URL) {
             throw new SyncError('Missing GAS Web App URL.');
         }
+
+        const payload = createPayload(tripId, storeId, items);
+
+        // Prefer GET to avoid preflight blocks; POST is used as a secondary path for environments that allow it.
         try {
             const response = await fetch(GAS_WEB_APP_URL, {
                 method: 'POST',
