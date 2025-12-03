@@ -71,8 +71,8 @@ Follow these steps to make it ready for syncing trips:
 
 This project uses GitHub Actions to automatically deploy to Google Cloud Storage.
 
-The workflow expects `GCP_SA_KEY` and `GCP_BUCKET_NAME` to be configured as repository secrets. If either secret is missing, the
-deploy job fails immediately with a clear error so you know to correct the secret configuration.
+The workflow expects `GCP_SA_KEY` and `GCP_BUCKET_NAME` to be configured as repository secrets. If either secret is missing, th
+e deploy job will still build the app but will skip the authenticated upload step and report that deployment was skipped.
 
 See `deployment_guide.md` for detailed setup instructions.
 
