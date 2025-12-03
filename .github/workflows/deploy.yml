@@ -13,6 +13,16 @@ jobs:
       id-token: 'write'
 
     steps:
+      - name: Check required secrets
+        id: secrets
+        run: |
+          missing="false"
+          if [ -z "${{ secrets.GCP_SA_KEY }}" ] || [ -z "${{ secrets.GCP_BUCKET_NAME }}" ]; then
+            missing="true"
+            echo "GCP_SA_KEY and/or GCP_BUCKET_NAME are not configured; skipping deploy upload."
+          fi
+          echo "missing=${missing}" >> "$GITHUB_OUTPUT"
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -29,13 +39,19 @@ jobs:
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
+        if: steps.secrets.outputs.missing == 'false'
         with:
           credentials_json: '${{ secrets.GCP_SA_KEY }}'
 
       - name: Upload to GCS
         uses: google-github-actions/upload-cloud-storage@v2
+        if: steps.secrets.outputs.missing == 'false'
         with:
           path: 'dist'
           destination: '${{ secrets.GCP_BUCKET_NAME }}/grocery-companion'
           parent: false # Do not include the 'dist' folder name in the destination
           gzip: false
+
+      - name: Skipped deploy (missing secrets)
+        if: steps.secrets.outputs.missing == 'true'
+        run: echo "Deploy upload skipped because required GCP secrets are not available."
