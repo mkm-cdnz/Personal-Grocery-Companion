@@ -28,6 +28,23 @@ const parseResponse = async (response: Response) => {
 };
 
 export const api = {
+    checkHealth: async () => {
+        const response = await fetch(GAS_WEB_APP_URL, {
+            method: 'GET',
+            mode: 'cors',
+            credentials: 'omit',
+            cache: 'no-store',
+        });
+
+        const parsed = await parseResponse(response);
+        const bodyText = typeof parsed === 'string' ? parsed : JSON.stringify(parsed);
+
+        if (!response.ok) {
+            throw new SyncError(`Health check failed (${response.status} ${response.statusText})`, response.status, bodyText);
+        }
+
+        return bodyText;
+    },
     syncTrip: async (tripId: string, storeId: string, items: CartItem[]) => {
         if (!GAS_WEB_APP_URL) {
             throw new SyncError('Missing GAS Web App URL.');
