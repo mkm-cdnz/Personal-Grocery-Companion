@@ -19,8 +19,8 @@ function doPost(e) {
     const { tripId, storeId, items } = data;
 
     if (!tripId || !storeId || !items || !Array.isArray(items)) {
-      return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: 'Invalid payload' }))
-        .setMimeType(ContentService.MimeType.JSON);
+      return withCors(ContentService.createTextOutput(JSON.stringify({ status: 'error', message: 'Invalid payload' }))
+        .setMimeType(ContentService.MimeType.JSON));
     }
 
     const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -44,12 +44,12 @@ function doPost(e) {
       historySheet.getRange(historySheet.getLastRow() + 1, 1, rows.length, rows[0].length).setValues(rows);
     }
 
-    return ContentService.createTextOutput(JSON.stringify({ status: 'success', rowsAdded: rows.length }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return withCors(ContentService.createTextOutput(JSON.stringify({ status: 'success', rowsAdded: rows.length }))
+      .setMimeType(ContentService.MimeType.JSON));
 
   } catch (error) {
-    return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: error.toString() }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return withCors(ContentService.createTextOutput(JSON.stringify({ status: 'error', message: error.toString() }))
+      .setMimeType(ContentService.MimeType.JSON));
   }
 }
 
@@ -58,12 +58,23 @@ function doGet(e) {
   const sheets = ensureAllSheets(ss);
   const message = 'Grocery Companion API is running';
 
-  return ContentService.createTextOutput(JSON.stringify({
+  return withCors(ContentService.createTextOutput(JSON.stringify({
     status: 'ready',
     message,
     sheets: Object.keys(sheets),
   }))
-    .setMimeType(ContentService.MimeType.JSON);
+    .setMimeType(ContentService.MimeType.JSON));
+}
+
+function doOptions() {
+  return withCors(ContentService.createTextOutput(''));
+}
+
+function withCors(output) {
+  return output
+    .setHeader('Access-Control-Allow-Origin', '*')
+    .setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+    .setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
 function ensureAllSheets(ss) {
