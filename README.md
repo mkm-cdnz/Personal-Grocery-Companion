@@ -64,7 +64,7 @@ Follow these steps to make it ready for syncing trips:
     # edit .env to paste your URL
     ```
 
-6. Update `VITE_GAS_WEB_APP_URL` inside `.env` with the Web App URL you copied.
+6. Update `VITE_GAS_WEB_APP_URL` inside `.env` (in the project root) with the Web App URL you copied so the frontend targets the correct deployment.
 7. Restart the dev server so Vite picks up the new environment variable.
 
 ## Deployment
