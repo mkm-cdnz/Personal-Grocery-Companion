@@ -6,7 +6,7 @@ import { useCartStore } from '../store/useCartStore';
 import StoreSelector from './StoreSelector';
 import Cart from './Cart';
 import ProductEntry from './ProductEntry';
-import { api } from '../services/api';
+import { api, SyncError } from '../services/api';
 
 export default function Layout() {
     const { currentStoreId, tripId, items, clearCart } = useCartStore();
@@ -31,7 +31,16 @@ export default function Layout() {
             }, 1500);
         } catch (error) {
             console.error(error);
-            setSnackbar({ open: true, message: 'Sync failed. Please try again.', severity: 'error' });
+            let message = 'Sync failed. Please try again.';
+
+            if (error instanceof SyncError) {
+                const responseDetails = error.responseBody ? ` Response: ${error.responseBody.slice(0, 200)}` : '';
+                message = `${error.message}${responseDetails}`;
+            } else if (error instanceof Error) {
+                message = error.message;
+            }
+
+            setSnackbar({ open: true, message, severity: 'error' });
             setSyncing(false);
         }
     };
