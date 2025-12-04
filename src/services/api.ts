@@ -14,7 +14,7 @@ export class SyncError extends Error {
 
 // Allow overriding via env so the frontend can be pointed at a freshly redeployed Apps Script URL without code edits.
 const GAS_WEB_APP_URL = import.meta.env.VITE_GAS_WEB_APP_URL
-    || 'https://script.google.com/macros/s/AKfycbxpor4UO2g7Xwc5EUn0IdqO-VGvRSCK7NxubVyI9eL_BBx_cY7tpG7RHEEr2euo2nV6/exec';
+    || 'https://script.google.com/macros/s/AKfycbw5I1J6XFf1YRtKDOzwXZqYXue4PYkZXVeD0dwobzc_wT-O4bV9GLVAiRt3REf90OjE/exec';
 
 const parseResponse = async (response: Response) => {
     const contentType = response.headers.get('content-type') || '';
