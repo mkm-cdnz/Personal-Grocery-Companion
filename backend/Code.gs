@@ -23,8 +23,8 @@ function doPost(e) {
     const { tripId, storeId, items } = data;
 
     if (!tripId || !storeId || !items || !Array.isArray(items)) {
-      return withCors(ContentService.createTextOutput(JSON.stringify({ status: 'error', message: 'Invalid payload' }))
-        .setMimeType(ContentService.MimeType.JSON));
+      return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: 'Invalid payload' }))
+        .setMimeType(ContentService.MimeType.JSON);
     }
 
     const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -51,13 +51,13 @@ function doPost(e) {
       historySheet.getRange(historySheet.getLastRow() + 1, 1, rows.length, rows[0].length).setValues(rows);
     }
 
-    return withCors(ContentService.createTextOutput(JSON.stringify({ status: 'success', rowsAdded: rows.length }))
-      .setMimeType(ContentService.MimeType.JSON));
+    return ContentService.createTextOutput(JSON.stringify({ status: 'success', rowsAdded: rows.length }))
+      .setMimeType(ContentService.MimeType.JSON);
 
   } catch (error) {
     console.error('doPost Error: ' + error.toString());
-    return withCors(ContentService.createTextOutput(JSON.stringify({ status: 'error', message: error.toString() }))
-      .setMimeType(ContentService.MimeType.JSON));
+    return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: error.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
   }
 }
 
@@ -78,29 +78,23 @@ function doGet(e) {
     const sheets = ensureAllSheets(ss);
     const message = 'Grocery Companion API is running';
 
-    return withCors(ContentService.createTextOutput(JSON.stringify({
+    return ContentService.createTextOutput(JSON.stringify({
       status: 'ready',
       message,
       sheets: Object.keys(sheets),
     }))
-      .setMimeType(ContentService.MimeType.JSON));
+      .setMimeType(ContentService.MimeType.JSON);
 
   } catch (error) {
     console.error('doGet Error: ' + error.toString());
-    return withCors(ContentService.createTextOutput(JSON.stringify({ status: 'error', message: error.toString() }))
-      .setMimeType(ContentService.MimeType.JSON));
+    return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: error.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
   }
 }
 
-function doOptions() {
-  return withCors(ContentService.createTextOutput(''));
-}
-
-function withCors(output) {
-  return output
-    .setHeader('Access-Control-Allow-Origin', '*')
-    .setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-    .setHeader('Access-Control-Allow-Headers', 'Content-Type');
+function doOptions(e) {
+  // GAS handles CORS automatically for ContentService, but we can return empty 200 for OPTIONS just in case.
+  return ContentService.createTextOutput('');
 }
 
 function ensureAllSheets(ss) {
@@ -124,8 +118,8 @@ function handleSync(data) {
   const { tripId, storeId, items } = data;
 
   if (!tripId || !storeId || !items || !Array.isArray(items)) {
-    return withCors(ContentService.createTextOutput(JSON.stringify({ status: 'error', message: 'Invalid payload' }))
-      .setMimeType(ContentService.MimeType.JSON));
+    return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: 'Invalid payload' }))
+      .setMimeType(ContentService.MimeType.JSON);
   }
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -149,6 +143,6 @@ function handleSync(data) {
     historySheet.getRange(historySheet.getLastRow() + 1, 1, rows.length, rows[0].length).setValues(rows);
   }
 
-  return withCors(ContentService.createTextOutput(JSON.stringify({ status: 'success', rowsAdded: rows.length }))
-    .setMimeType(ContentService.MimeType.JSON));
+  return ContentService.createTextOutput(JSON.stringify({ status: 'success', rowsAdded: rows.length }))
+    .setMimeType(ContentService.MimeType.JSON);
 }
