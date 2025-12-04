@@ -111,10 +111,16 @@ function doPost(e) {
 function doGet(e) {
   try {
     // Handle sync via GET (if applicable)
-    if (e && e.parameter && e.parameter.action === 'sync' && e.parameter.payload) {
+    if (e && e.parameter) {
+      if (e.parameter.action === 'sync' && e.parameter.payload) {
         const decoded = Utilities.newBlob(Utilities.base64Decode(e.parameter.payload)).getDataAsString();
         const data = JSON.parse(decoded);
         return handleSync(data);
+      }
+      
+      if (e.parameter.action === 'getData') {
+        return handleGetData();
+      }
     }
 
     // Health check / Status
@@ -137,6 +143,57 @@ function doGet(e) {
     return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: error.toString() }))
       .setMimeType(ContentService.MimeType.JSON);
   }
+}
+
+function handleGetData() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheets = ensureAllSheets(ss);
+  
+  // Get Stores
+  const storeSheet = sheets.Store_Master;
+  const storeRows = storeSheet.getDataRange().getValues();
+  const stores = [];
+  // Skip header row (index 0)
+  for (let i = 1; i < storeRows.length; i++) {
+    const row = storeRows[i];
+    // ['StoreID', 'StoreName', 'LocationText', 'GPS_Lat', 'GPS_Lon', 'LastUsed']
+    if (row[0]) { // Ensure ID exists
+      stores.push({
+        StoreID: row[0],
+        StoreName: row[1],
+        LocationText: row[2],
+        GPS_Lat: row[3],
+        GPS_Lon: row[4],
+        LastUsed: row[5]
+      });
+    }
+  }
+
+  // Get Products
+  const productSheet = sheets.Product_Master;
+  const productRows = productSheet.getDataRange().getValues();
+  const products = [];
+  // Skip header row
+  for (let i = 1; i < productRows.length; i++) {
+    const row = productRows[i];
+    // ['ProductID', 'Barcode', 'Name', 'SizeValue', 'SizeUnit', 'IsLoose']
+    if (row[0]) {
+      products.push({
+        ProductID: row[0],
+        Barcode: row[1],
+        Name: row[2],
+        SizeValue: row[3],
+        SizeUnit: row[4],
+        IsLoose: row[5]
+      });
+    }
+  }
+
+  return ContentService.createTextOutput(JSON.stringify({
+    status: 'success',
+    stores: stores,
+    products: products
+  })).setMimeType(ContentService.MimeType.JSON);
 }
 
 function doOptions(e) {

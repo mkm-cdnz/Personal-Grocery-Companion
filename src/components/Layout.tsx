@@ -11,7 +11,7 @@ import { api, SyncError } from '../services/api';
 
 export default function Layout() {
     const { currentStoreId, tripId, items, clearCart } = useCartStore();
-    const { stores } = useReferenceStore();
+    const { stores, setStores, setProducts } = useReferenceStore();
     const [syncing, setSyncing] = useState(false);
     const [health, setHealth] = useState<{ status: 'idle' | 'ok' | 'error', message?: string }>({ status: 'idle' });
     const [snackbar, setSnackbar] = useState<{ open: boolean, message: string, severity: 'success' | 'error' }>({
@@ -20,14 +20,30 @@ export default function Layout() {
         severity: 'success'
     });
 
+
+
     useEffect(() => {
         let active = true;
 
-        const checkSyncHealth = async () => {
+        const init = async () => {
             try {
-                const result = await api.checkHealth();
+                // 1. Check Health
+                const healthResult = await api.checkHealth();
                 if (!active) return;
-                setHealth({ status: 'ok', message: result });
+                setHealth({ status: 'ok', message: healthResult });
+
+                // 2. Fetch Data (Stores & Products)
+                try {
+                    const data = await api.fetchData();
+                    if (active && data.status === 'success') {
+                        if (data.stores) setStores(data.stores);
+                        if (data.products) setProducts(data.products);
+                    }
+                } catch (fetchErr) {
+                    console.warn('Failed to fetch initial data:', fetchErr);
+                    // Don't block the UI, just log it. User can still add new stores.
+                }
+
             } catch (error) {
                 if (!active) return;
                 const message = error instanceof SyncError
@@ -37,12 +53,12 @@ export default function Layout() {
             }
         };
 
-        checkSyncHealth();
+        init();
 
         return () => {
             active = false;
         };
-    }, []);
+    }, [setStores, setProducts]);
 
     const handleSync = async () => {
         if (!tripId || !currentStoreId) return;

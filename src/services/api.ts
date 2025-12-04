@@ -14,7 +14,7 @@ export class SyncError extends Error {
 
 // Allow overriding via env so the frontend can be pointed at a freshly redeployed Apps Script URL without code edits.
 const GAS_WEB_APP_URL = import.meta.env.VITE_GAS_WEB_APP_URL
-    || 'https://script.google.com/macros/s/AKfycbwizBCWRswth_qyvZfRSDjGmINLt1xmGhPhr7zi1sbBsL0V3LyjJlDOKWlofFiLQrrh/exec';
+    || 'https://script.google.com/macros/s/AKfycbyjeYYQpQydgk352IVJYB9DI9fKdRx31FkVt5OgHyha-qYK-wrmM_3W9VRsyxUnBTHJ/exec';
 
 console.log('Using GAS URL:', GAS_WEB_APP_URL);
 
@@ -89,6 +89,39 @@ export const api = {
             // Ensure unexpected errors still include context for the snackbar.
             const fallbackMessage = error instanceof Error ? error.message : 'Unknown sync error';
             throw new SyncError(fallbackMessage);
+        }
+    },
+    fetchData: async () => {
+        if (!GAS_WEB_APP_URL) {
+            throw new SyncError('Missing GAS Web App URL.');
+        }
+
+        try {
+            const url = new URL(GAS_WEB_APP_URL);
+            url.searchParams.append('action', 'getData');
+
+            const response = await fetch(url.toString(), {
+                method: 'GET',
+                mode: 'cors',
+                credentials: 'omit',
+            });
+
+            const parsed = await parseResponse(response);
+            const bodyText = typeof parsed === 'string' ? parsed : JSON.stringify(parsed);
+
+            if (!response.ok) {
+                throw new SyncError(`Fetch data failed (${response.status} ${response.statusText})`, response.status, bodyText);
+            }
+
+            if (parsed?.status !== 'success') {
+                throw new SyncError(parsed?.message || 'Fetch data failed', response.status, bodyText);
+            }
+
+            return parsed;
+        } catch (error) {
+            console.error('Fetch data error:', error);
+            if (error instanceof SyncError) throw error;
+            throw new SyncError(error instanceof Error ? error.message : 'Unknown fetch error');
         }
     }
 };
