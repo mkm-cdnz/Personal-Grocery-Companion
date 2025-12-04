@@ -16,6 +16,8 @@ export class SyncError extends Error {
 const GAS_WEB_APP_URL = import.meta.env.VITE_GAS_WEB_APP_URL
     || 'https://script.google.com/macros/s/AKfycbzPVBa2wNYzRxYaODM43GTijONaG1Jmg6YRxUcg_cddN3fH9UNpdXy7bSjxh-S9xDVg/exec';
 
+console.log('Using GAS URL:', GAS_WEB_APP_URL);
+
 const parseResponse = async (response: Response) => {
     const contentType = response.headers.get('content-type') || '';
 
