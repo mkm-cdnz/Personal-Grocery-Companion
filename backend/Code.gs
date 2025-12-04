@@ -15,6 +15,10 @@ function initializeSheets() {
 
 function doPost(e) {
   try {
+    if (!e || !e.postData || !e.postData.contents) {
+      throw new Error('Invalid request: missing postData');
+    }
+    
     const data = JSON.parse(e.postData.contents);
     const { tripId, storeId, items } = data;
 
@@ -24,6 +28,9 @@ function doPost(e) {
     }
 
     const ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (!ss) {
+      throw new Error('Script is not bound to a spreadsheet. Please bind the script to a Google Sheet.');
+    }
     const historySheet = ensureAllSheets(ss).Purchase_History;
 
     const timestamp = new Date().toISOString();
@@ -48,24 +55,22 @@ function doPost(e) {
       .setMimeType(ContentService.MimeType.JSON));
 
   } catch (error) {
+    console.error('doPost Error: ' + error.toString());
     return withCors(ContentService.createTextOutput(JSON.stringify({ status: 'error', message: error.toString() }))
       .setMimeType(ContentService.MimeType.JSON));
   }
 }
 
 function doGet(e) {
-  if (e && e.parameter && e.parameter.action === 'sync' && e.parameter.payload) {
-    try {
-      const decoded = Utilities.newBlob(Utilities.base64Decode(e.parameter.payload)).getDataAsString();
-      const data = JSON.parse(decoded);
-      return handleSync(data);
-    } catch (error) {
-      return withCors(ContentService.createTextOutput(JSON.stringify({ status: 'error', message: error.toString() }))
-        .setMimeType(ContentService.MimeType.JSON));
-    }
-  }
-
   try {
+    // Handle sync via GET (if applicable)
+    if (e && e.parameter && e.parameter.action === 'sync' && e.parameter.payload) {
+        const decoded = Utilities.newBlob(Utilities.base64Decode(e.parameter.payload)).getDataAsString();
+        const data = JSON.parse(decoded);
+        return handleSync(data);
+    }
+
+    // Health check / Status
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     if (!ss) {
       throw new Error('Script is not bound to a spreadsheet. Please bind the script to a Google Sheet.');
@@ -79,7 +84,9 @@ function doGet(e) {
       sheets: Object.keys(sheets),
     }))
       .setMimeType(ContentService.MimeType.JSON));
+
   } catch (error) {
+    console.error('doGet Error: ' + error.toString());
     return withCors(ContentService.createTextOutput(JSON.stringify({ status: 'error', message: error.toString() }))
       .setMimeType(ContentService.MimeType.JSON));
   }
