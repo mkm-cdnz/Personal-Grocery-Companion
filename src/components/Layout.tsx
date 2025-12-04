@@ -37,7 +37,14 @@ export default function Layout() {
                     const data = await api.fetchData();
                     if (active && data.status === 'success') {
                         if (data.stores) setStores(data.stores);
-                        if (data.products) setProducts(data.products);
+                        if (data.products) {
+                            // Ensure Barcode is always a string for consistent comparison
+                            const normalizedProducts = data.products.map((p: any) => ({
+                                ...p,
+                                Barcode: p.Barcode ? String(p.Barcode) : null
+                            }));
+                            setProducts(normalizedProducts);
+                        }
                     }
                 } catch (fetchErr) {
                     console.warn('Failed to fetch initial data:', fetchErr);

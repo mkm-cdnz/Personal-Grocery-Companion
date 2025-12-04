@@ -45,7 +45,8 @@ export const useReferenceStore = create<ReferenceState>()(
             addProduct: (product) => set((state) => ({ products: [...state.products, product] })),
 
             getProductByBarcode: (barcode) => {
-                return get().products.find((p) => p.Barcode === barcode);
+                const target = barcode.trim();
+                return get().products.find((p) => p.Barcode && String(p.Barcode).trim() === target);
             },
         }),
         {
