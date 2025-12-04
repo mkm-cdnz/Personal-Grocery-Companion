@@ -65,16 +65,24 @@ function doGet(e) {
     }
   }
 
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheets = ensureAllSheets(ss);
-  const message = 'Grocery Companion API is running';
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (!ss) {
+      throw new Error('Script is not bound to a spreadsheet. Please bind the script to a Google Sheet.');
+    }
+    const sheets = ensureAllSheets(ss);
+    const message = 'Grocery Companion API is running';
 
-  return withCors(ContentService.createTextOutput(JSON.stringify({
-    status: 'ready',
-    message,
-    sheets: Object.keys(sheets),
-  }))
-    .setMimeType(ContentService.MimeType.JSON));
+    return withCors(ContentService.createTextOutput(JSON.stringify({
+      status: 'ready',
+      message,
+      sheets: Object.keys(sheets),
+    }))
+      .setMimeType(ContentService.MimeType.JSON));
+  } catch (error) {
+    return withCors(ContentService.createTextOutput(JSON.stringify({ status: 'error', message: error.toString() }))
+      .setMimeType(ContentService.MimeType.JSON));
+  }
 }
 
 function doOptions() {
