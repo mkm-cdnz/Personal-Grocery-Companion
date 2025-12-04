@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Box, Button, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Tabs, Tab, FormControlLabel, Switch, InputAdornment, Typography } from '@mui/material';
 import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner';
 import { Html5QrcodeScanner } from 'html5-qrcode';
@@ -43,6 +43,27 @@ export default function ProductEntry() {
         setSizeUnit('g');
     };
 
+    const onScanSuccess = useCallback((decodedText: string) => {
+        setBarcode(decodedText);
+        const existingProduct = getProductByBarcode(decodedText);
+        if (existingProduct) {
+            setName(existingProduct.Name);
+            setIsLoose(existingProduct.IsLoose);
+            setSizeValue(existingProduct.SizeValue?.toString() || '');
+            setSizeUnit(existingProduct.SizeUnit || 'g');
+            // TODO: Look up last price from history (mocked for now)
+        }
+        setTabIndex(1); // Switch to manual/confirm view
+        if (scanner) {
+            scanner.clear().catch(console.error);
+            setScanner(null);
+        }
+    }, [getProductByBarcode, scanner]);
+
+    const onScanFailure = useCallback(() => {
+        // console.warn(`Code scan error = ${error}`);
+    }, []);
+
     useEffect(() => {
         let timeoutId: ReturnType<typeof setTimeout>;
 
@@ -66,9 +87,6 @@ export default function ProductEntry() {
                     console.error("Failed to initialize scanner", e);
                 }
             }, 300); // 300ms delay for Dialog transition
-        } else if (scanner) {
-            scanner.clear().catch(console.error);
-            setScanner(null);
         }
 
         return () => {
@@ -77,28 +95,7 @@ export default function ProductEntry() {
                 scanner.clear().catch(console.error);
             }
         };
-    }, [open, tabIndex]);
-
-    const onScanSuccess = (decodedText: string) => {
-        setBarcode(decodedText);
-        const existingProduct = getProductByBarcode(decodedText);
-        if (existingProduct) {
-            setName(existingProduct.Name);
-            setIsLoose(existingProduct.IsLoose);
-            setSizeValue(existingProduct.SizeValue?.toString() || '');
-            setSizeUnit(existingProduct.SizeUnit || 'g');
-            // TODO: Look up last price from history (mocked for now)
-        }
-        setTabIndex(1); // Switch to manual/confirm view
-        if (scanner) {
-            scanner.clear().catch(console.error);
-            setScanner(null);
-        }
-    };
-
-    const onScanFailure = (_error: any) => {
-        // console.warn(`Code scan error = ${error}`);
-    };
+    }, [onScanFailure, onScanSuccess, open, scanner, tabIndex]);
 
     const handleAdd = () => {
         if (!name || !price || !currentStoreId || !quantity) return;
