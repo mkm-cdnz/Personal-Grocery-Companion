@@ -13,7 +13,8 @@ import {
     DialogActions,
     TextField,
     CircularProgress,
-    Alert
+    Alert,
+    Autocomplete
 } from '@mui/material';
 import AddLocationIcon from '@mui/icons-material/AddLocation';
 import StoreIcon from '@mui/icons-material/Store';
@@ -139,15 +140,22 @@ export default function StoreSelector() {
             <Dialog open={open} onClose={() => !loadingLocation && setOpen(false)} fullWidth>
                 <DialogTitle>Add New Store</DialogTitle>
                 <DialogContent>
-                    <TextField
-                        autoFocus
-                        margin="dense"
-                        label="Store Name (e.g. Countdown)"
-                        fullWidth
-                        variant="outlined"
+                    <Autocomplete
+                        freeSolo
+                        options={stores.map((s) => s.StoreName)}
                         value={newStoreName}
-                        onChange={(e) => setNewStoreName(e.target.value)}
-                        sx={{ mb: 2 }}
+                        onInputChange={(_: React.SyntheticEvent, newValue: string) => setNewStoreName(newValue)}
+                        renderInput={(params) => (
+                            <TextField
+                                {...params}
+                                autoFocus
+                                margin="dense"
+                                label="Store Name (e.g. Countdown)"
+                                fullWidth
+                                variant="outlined"
+                                sx={{ mb: 2 }}
+                            />
+                        )}
                     />
                     <TextField
                         margin="dense"

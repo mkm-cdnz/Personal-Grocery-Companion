@@ -3,6 +3,7 @@ import { AppBar, Toolbar, Typography, Container, Box, IconButton, Button, Circul
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import { useCartStore } from '../store/useCartStore';
+import { useReferenceStore } from '../store/useReferenceStore';
 import StoreSelector from './StoreSelector';
 import Cart from './Cart';
 import ProductEntry from './ProductEntry';
@@ -10,6 +11,7 @@ import { api, SyncError } from '../services/api';
 
 export default function Layout() {
     const { currentStoreId, tripId, items, clearCart } = useCartStore();
+    const { stores } = useReferenceStore();
     const [syncing, setSyncing] = useState(false);
     const [health, setHealth] = useState<{ status: 'idle' | 'ok' | 'error', message?: string }>({ status: 'idle' });
     const [snackbar, setSnackbar] = useState<{ open: boolean, message: string, severity: 'success' | 'error' }>({
@@ -47,7 +49,10 @@ export default function Layout() {
 
         setSyncing(true);
         try {
-            await api.syncTrip(tripId, currentStoreId, items);
+            const currentStore = stores.find(s => s.StoreID === currentStoreId);
+            const timestamp = new Date().toISOString();
+
+            await api.syncTrip(tripId, currentStoreId, items, currentStore, timestamp);
             setSnackbar({ open: true, message: 'Trip synced successfully!', severity: 'success' });
             // Delay clearing to show success state
             setTimeout(() => {

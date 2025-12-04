@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Box, Button, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Tabs, Tab, FormControlLabel, Switch, InputAdornment, Typography } from '@mui/material';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Box, Button, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Tabs, Tab, FormControlLabel, Switch, InputAdornment, Typography, Autocomplete, ToggleButtonGroup, ToggleButton } from '@mui/material';
 import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { useCartStore } from '../store/useCartStore';
@@ -8,11 +8,11 @@ import type { Product } from '../types';
 
 export default function ProductEntry() {
     const { addItem, currentStoreId } = useCartStore();
-    const { addProduct, getProductByBarcode } = useReferenceStore();
+    const { addProduct, getProductByBarcode, products } = useReferenceStore();
 
     const [open, setOpen] = useState(false);
     const [tabIndex, setTabIndex] = useState(0); // 0 = Scan, 1 = Manual
-    const [scanner, setScanner] = useState<Html5QrcodeScanner | null>(null);
+    const scannerRef = useRef<Html5QrcodeScanner | null>(null);
 
     // Form State
     const [barcode, setBarcode] = useState('');
@@ -26,9 +26,9 @@ export default function ProductEntry() {
     const handleOpen = () => setOpen(true);
     const handleClose = () => {
         setOpen(false);
-        if (scanner) {
-            scanner.clear().catch(console.error);
-            setScanner(null);
+        if (scannerRef.current) {
+            scannerRef.current.clear().catch(console.error);
+            scannerRef.current = null;
         }
         resetForm();
     };
@@ -51,51 +51,54 @@ export default function ProductEntry() {
             setIsLoose(existingProduct.IsLoose);
             setSizeValue(existingProduct.SizeValue?.toString() || '');
             setSizeUnit(existingProduct.SizeUnit || 'g');
-            // TODO: Look up last price from history (mocked for now)
         }
         setTabIndex(1); // Switch to manual/confirm view
-        if (scanner) {
-            scanner.clear().catch(console.error);
-            setScanner(null);
+        if (scannerRef.current) {
+            scannerRef.current.clear().catch(console.error);
+            scannerRef.current = null;
         }
-    }, [getProductByBarcode, scanner]);
+    }, [getProductByBarcode]);
 
     const onScanFailure = useCallback(() => {
-        // console.warn(`Code scan error = ${error}`);
+        // Silently ignore scan failures
     }, []);
 
-    useEffect(() => {
-        let timeoutId: ReturnType<typeof setTimeout>;
+    // Use a callback ref to initialize the scanner once the element is in the DOM
+    const measureRef = useCallback((node: HTMLDivElement | null) => {
+        if (node !== null && open && tabIndex === 0) {
+            if (scannerRef.current) {
+                scannerRef.current.clear().catch(console.error);
+            }
 
-        if (open && tabIndex === 0) {
-            // Wait for Dialog to fully render the #reader div
-            timeoutId = setTimeout(() => {
-                if (!document.getElementById('reader')) {
-                    console.warn("Scanner element 'reader' not found");
-                    return;
-                }
+            const scanner = new Html5QrcodeScanner(
+                "reader",
+                { fps: 10, qrbox: { width: 250, height: 250 } },
+                /* verbose= */ false
+            );
 
-                try {
-                    const newScanner = new Html5QrcodeScanner(
-                        "reader",
-                        { fps: 10, qrbox: { width: 250, height: 250 } },
-                        /* verbose= */ false
-                    );
-                    newScanner.render(onScanSuccess, onScanFailure);
-                    setScanner(newScanner);
-                } catch (e) {
-                    console.error("Failed to initialize scanner", e);
-                }
-            }, 300); // 300ms delay for Dialog transition
+            scanner.render(onScanSuccess, onScanFailure);
+            scannerRef.current = scanner;
         }
+    }, [open, tabIndex, onScanSuccess, onScanFailure]);
 
+    // Cleanup on unmount or when dialog closes/tab changes
+    useEffect(() => {
         return () => {
-            clearTimeout(timeoutId);
-            if (scanner) {
-                scanner.clear().catch(console.error);
+            if (scannerRef.current) {
+                scannerRef.current.clear().catch(console.error);
+                scannerRef.current = null;
             }
         };
-    }, [onScanFailure, onScanSuccess, open, scanner, tabIndex]);
+    }, [open, tabIndex]);
+
+    // Cleanup scanner when component unmounts
+    useEffect(() => {
+        return () => {
+            if (scannerRef.current) {
+                scannerRef.current.clear().catch(console.error);
+            }
+        };
+    }, []);
 
     const handleAdd = () => {
         if (!name || !price || !currentStoreId || !quantity) return;
@@ -140,6 +143,9 @@ export default function ProductEntry() {
 
     const isAddDisabled = !name || !price || !quantity || Number(quantity) <= 0 || Number(price) <= 0;
 
+    // Get unique product names for autocomplete
+    const productNames = Array.from(new Set(products.map(p => p.Name))).sort();
+
     return (
         <Box sx={{ position: 'fixed', bottom: 16, right: 16, left: 16 }}>
             <Button
@@ -163,7 +169,7 @@ export default function ProductEntry() {
 
                     {tabIndex === 0 && (
                         <Box>
-                            <div id="reader" style={{ width: '100%' }}></div>
+                            <div id="reader" ref={measureRef} style={{ width: '100%' }}></div>
                             <Typography align="center" variant="caption" display="block" sx={{ mt: 1 }}>
                                 Point camera at barcode
                             </Typography>
@@ -174,12 +180,18 @@ export default function ProductEntry() {
                         <Box component="form" sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
                             {barcode && <Typography variant="caption">Barcode: {barcode}</Typography>}
 
-                            <TextField
-                                label="Product Name"
+                            <Autocomplete
+                                freeSolo
+                                options={productNames}
                                 value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                fullWidth
-                                autoFocus
+                                onInputChange={(_, newValue) => setName(newValue)}
+                                renderInput={(params) => (
+                                    <TextField
+                                        {...params}
+                                        label="Product Name"
+                                        autoFocus
+                                    />
+                                )}
                             />
 
                             <Box sx={{ display: 'flex', gap: 2 }}>
@@ -209,7 +221,7 @@ export default function ProductEntry() {
                             />
 
                             {!isLoose && (
-                                <Box sx={{ display: 'flex', gap: 2 }}>
+                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                                     <TextField
                                         label="Size"
                                         type="number"
@@ -217,12 +229,27 @@ export default function ProductEntry() {
                                         onChange={(e) => setSizeValue(e.target.value)}
                                         fullWidth
                                     />
-                                    <TextField
-                                        label="Unit"
-                                        value={sizeUnit}
-                                        onChange={(e) => setSizeUnit(e.target.value)}
-                                        sx={{ width: 100 }}
-                                    />
+                                    <Box>
+                                        <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                                            Unit
+                                        </Typography>
+                                        <ToggleButtonGroup
+                                            value={sizeUnit}
+                                            exclusive
+                                            onChange={(_, newUnit) => {
+                                                if (newUnit !== null) {
+                                                    setSizeUnit(newUnit);
+                                                }
+                                            }}
+                                            fullWidth
+                                            size="small"
+                                        >
+                                            <ToggleButton value="g">g</ToggleButton>
+                                            <ToggleButton value="kg">kg</ToggleButton>
+                                            <ToggleButton value="mL">mL</ToggleButton>
+                                            <ToggleButton value="L">L</ToggleButton>
+                                        </ToggleButtonGroup>
+                                    </Box>
                                 </Box>
                             )}
                         </Box>

@@ -20,7 +20,7 @@ function doPost(e) {
     }
     
     const data = JSON.parse(e.postData.contents);
-    const { tripId, storeId, items } = data;
+    const { tripId, storeId, items, store, timestamp } = data;
 
     if (!tripId || !storeId || !items || !Array.isArray(items)) {
       return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: 'Invalid payload' }))
@@ -31,14 +31,61 @@ function doPost(e) {
     if (!ss) {
       throw new Error('Script is not bound to a spreadsheet. Please bind the script to a Google Sheet.');
     }
-    const historySheet = ensureAllSheets(ss).Purchase_History;
+    const sheets = ensureAllSheets(ss);
+    const historySheet = sheets.Purchase_History;
+    const storeSheet = sheets.Store_Master;
+    const productSheet = sheets.Product_Master;
 
-    const timestamp = new Date().toISOString();
+    // 1. Sync Store if provided
+    if (store) {
+      const storeData = storeSheet.getDataRange().getValues();
+      // Assuming StoreID is column 1 (index 0)
+      const storeExists = storeData.some(row => row[0] === store.StoreID);
+      
+      if (!storeExists) {
+        storeSheet.appendRow([
+          store.StoreID,
+          store.StoreName,
+          store.LocationText,
+          store.GPS_Lat,
+          store.GPS_Lon,
+          store.LastUsed
+        ]);
+      } else {
+          // Optional: Update LastUsed if store exists
+          // For simplicity, we'll skip updating existing rows for now, 
+          // but you could iterate to find the row and update column 6.
+      }
+    }
+
+    // 2. Sync Products
+    const productData = productSheet.getDataRange().getValues();
+    const existingProductIds = new Set(productData.map(row => row[0])); // Assuming ProductID is col 1
+
+    items.forEach(item => {
+        const product = item.product;
+        if (product && !existingProductIds.has(product.ProductID)) {
+            productSheet.appendRow([
+                product.ProductID,
+                product.Barcode || '',
+                product.Name,
+                product.SizeValue || '',
+                product.SizeUnit || '',
+                product.IsLoose
+            ]);
+            existingProductIds.add(product.ProductID);
+        }
+    });
+
+    // 3. Record Purchase History
+    // Use client timestamp if provided, else server time
+    const txTimestamp = timestamp || new Date().toISOString();
+    
     const rows = items.map(item => {
       return [
         Utilities.getUuid(), // LogID
         tripId,
-        timestamp,
+        txTimestamp,
         storeId,
         item.product.ProductID,
         item.quantity,
@@ -115,7 +162,7 @@ function ensureAllSheets(ss) {
 }
 
 function handleSync(data) {
-  const { tripId, storeId, items } = data;
+  const { tripId, storeId, items, store, timestamp } = data;
 
   if (!tripId || !storeId || !items || !Array.isArray(items)) {
     return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: 'Invalid payload' }))
@@ -123,14 +170,54 @@ function handleSync(data) {
   }
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const historySheet = ensureAllSheets(ss).Purchase_History;
+  const sheets = ensureAllSheets(ss);
+  const historySheet = sheets.Purchase_History;
+  const storeSheet = sheets.Store_Master;
+  const productSheet = sheets.Product_Master;
 
-  const timestamp = new Date().toISOString();
+  // 1. Sync Store if provided
+  if (store) {
+      const storeData = storeSheet.getDataRange().getValues();
+      const storeExists = storeData.some(row => row[0] === store.StoreID);
+      
+      if (!storeExists) {
+        storeSheet.appendRow([
+          store.StoreID,
+          store.StoreName,
+          store.LocationText,
+          store.GPS_Lat,
+          store.GPS_Lon,
+          store.LastUsed
+        ]);
+      }
+  }
+
+  // 2. Sync Products
+  const productData = productSheet.getDataRange().getValues();
+  const existingProductIds = new Set(productData.map(row => row[0]));
+
+  items.forEach(item => {
+      const product = item.product;
+      if (product && !existingProductIds.has(product.ProductID)) {
+          productSheet.appendRow([
+              product.ProductID,
+              product.Barcode || '',
+              product.Name,
+              product.SizeValue || '',
+              product.SizeUnit || '',
+              product.IsLoose
+          ]);
+          existingProductIds.add(product.ProductID);
+      }
+  });
+
+  // 3. Record Purchase History
+  const txTimestamp = timestamp || new Date().toISOString();
   const rows = items.map(item => {
     return [
       Utilities.getUuid(), // LogID
       tripId,
-      timestamp,
+      txTimestamp,
       storeId,
       item.product.ProductID,
       item.quantity,

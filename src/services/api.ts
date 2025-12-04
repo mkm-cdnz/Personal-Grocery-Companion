@@ -14,7 +14,7 @@ export class SyncError extends Error {
 
 // Allow overriding via env so the frontend can be pointed at a freshly redeployed Apps Script URL without code edits.
 const GAS_WEB_APP_URL = import.meta.env.VITE_GAS_WEB_APP_URL
-    || 'https://script.google.com/macros/s/AKfycbyfehcF0d194xwrnu5hPUMcFlPCYjeNADWMMgYkmDlM045YfiTZrqQQhwTkI8amS1NH/exec';
+    || 'https://script.google.com/macros/s/AKfycbwizBCWRswth_qyvZfRSDjGmINLt1xmGhPhr7zi1sbBsL0V3LyjJlDOKWlofFiLQrrh/exec';
 
 console.log('Using GAS URL:', GAS_WEB_APP_URL);
 
@@ -47,7 +47,7 @@ export const api = {
 
         return bodyText;
     },
-    syncTrip: async (tripId: string, storeId: string, items: CartItem[]) => {
+    syncTrip: async (tripId: string, storeId: string, items: CartItem[], store: any, timestamp: string) => {
         if (!GAS_WEB_APP_URL) {
             throw new SyncError('Missing GAS Web App URL.');
         }
@@ -60,7 +60,7 @@ export const api = {
                 headers: {
                     'Content-Type': 'text/plain;charset=utf-8',
                 },
-                body: JSON.stringify({ tripId, storeId, items }),
+                body: JSON.stringify({ tripId, storeId, items, store, timestamp }),
             });
 
             const parsed = await parseResponse(response);
