@@ -11,7 +11,7 @@ import { api, SyncError } from '../services/api';
 
 export default function Layout() {
     const { currentStoreId, tripId, items, clearCart } = useCartStore();
-    const { stores, setStores, setProducts } = useReferenceStore();
+    const { stores, setStores, setProducts, setLastPrices } = useReferenceStore();
     const [syncing, setSyncing] = useState(false);
     const [health, setHealth] = useState<{ status: 'idle' | 'ok' | 'error', message?: string }>({ status: 'idle' });
     const [snackbar, setSnackbar] = useState<{ open: boolean, message: string, severity: 'success' | 'error' }>({
@@ -45,6 +45,17 @@ export default function Layout() {
                             }));
                             setProducts(normalizedProducts);
                         }
+                        if (data.lastPrices) {
+                            const normalizedPrices = data.lastPrices
+                                .map((p: any) => ({
+                                    storeId: p.StoreID_FK ? String(p.StoreID_FK) : '',
+                                    productId: p.ProductID_FK ? String(p.ProductID_FK) : '',
+                                    unitPrice: Number(p.Unit_Price),
+                                    timestamp: p.Timestamp || ''
+                                }))
+                                .filter((p: any) => p.storeId && p.productId && !Number.isNaN(p.unitPrice));
+                            setLastPrices(normalizedPrices);
+                        }
                     }
                 } catch (fetchErr) {
                     console.warn('Failed to fetch initial data:', fetchErr);
@@ -65,7 +76,7 @@ export default function Layout() {
         return () => {
             active = false;
         };
-    }, [setStores, setProducts]);
+    }, [setStores, setProducts, setLastPrices]);
 
     const handleSync = async () => {
         if (!tripId || !currentStoreId) return;
