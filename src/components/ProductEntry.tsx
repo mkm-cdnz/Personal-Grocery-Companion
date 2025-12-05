@@ -23,9 +23,13 @@ export default function ProductEntry() {
     const [sizeValue, setSizeValue] = useState('');
     const [sizeUnit, setSizeUnit] = useState('g');
 
-    const handleOpen = () => setOpen(true);
+    const handleOpen = () => {
+        setTabIndex(0);
+        setOpen(true);
+    };
     const handleClose = () => {
         setOpen(false);
+        setTabIndex(0);
         if (scannerRef.current) {
             scannerRef.current.clear().catch(console.error);
             scannerRef.current = null;
