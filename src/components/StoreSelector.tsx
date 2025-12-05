@@ -117,9 +117,7 @@ export default function StoreSelector() {
         Number.isFinite(store.GPS_Lon) &&
         (store.GPS_Lat !== 0 || store.GPS_Lon !== 0);
 
-    type StoreWithDistance = { store: Store; distanceKm?: number };
-
-    const sortedStores: StoreWithDistance[] = useMemo(() => {
+    const sortedStores = useMemo(() => {
         const byLastUsed = [...stores].sort(
             (a, b) => new Date(b.LastUsed).getTime() - new Date(a.LastUsed).getTime()
         );
@@ -168,7 +166,7 @@ export default function StoreSelector() {
                                 <ListItemText
                                     primary={store.StoreName}
                                     secondary={
-                                        distanceKm !== undefined
+                                        distanceKm
                                             ? `${store.LocationText} • ${formatDistance(distanceKm)}`
                                             : store.LocationText
                                     }
