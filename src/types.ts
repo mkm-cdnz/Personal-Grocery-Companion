@@ -25,6 +25,13 @@ export interface CartItem {
   lineTotal: number;
 }
 
+export interface LastPriceSnapshot {
+  storeId: string;
+  productId: string;
+  unitPrice: number;
+  timestamp: string;
+}
+
 export interface PurchaseLog {
   LogID?: string;
   TripID: string;

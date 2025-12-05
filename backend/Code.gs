@@ -189,10 +189,43 @@ function handleGetData() {
     }
   }
 
+  // Get Last Known Prices (by Store + Product)
+  const historySheet = sheets.Purchase_History;
+  const historyRows = historySheet.getDataRange().getValues();
+  const lastPriceMap = {};
+
+  // ['LogID', 'TripID', 'Timestamp', 'StoreID_FK', 'ProductID_FK', 'Quantity', 'Unit_Price', 'Line_Total']
+  for (let i = 1; i < historyRows.length; i++) {
+    const row = historyRows[i];
+    const timestamp = row[2];
+    const storeId = row[3];
+    const productId = row[4];
+    const unitPrice = row[6];
+
+    if (!timestamp || !storeId || !productId || unitPrice === undefined || unitPrice === null || unitPrice === '') {
+      continue;
+    }
+
+    const key = `${storeId}__${productId}`;
+    const existing = lastPriceMap[key];
+
+    if (!existing || new Date(timestamp) > new Date(existing.Timestamp)) {
+      lastPriceMap[key] = {
+        StoreID_FK: storeId,
+        ProductID_FK: productId,
+        Unit_Price: Number(unitPrice),
+        Timestamp: timestamp,
+      };
+    }
+  }
+
+  const lastPrices = Object.values(lastPriceMap);
+
   return ContentService.createTextOutput(JSON.stringify({
     status: 'success',
     stores: stores,
-    products: products
+    products: products,
+    lastPrices: lastPrices,
   })).setMimeType(ContentService.MimeType.JSON);
 }
 
