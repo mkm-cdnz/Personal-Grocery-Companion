@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
     Box,
     Button,
@@ -21,6 +21,7 @@ import StoreIcon from '@mui/icons-material/Store';
 import { useReferenceStore } from '../store/useReferenceStore';
 import { useCartStore } from '../store/useCartStore';
 import type { Store } from '../types';
+import { haversineDistanceKm } from '../utils/geo';
 
 export default function StoreSelector() {
     const { stores, addStore, storeExists, updateStoreLastUsed } = useReferenceStore();
@@ -32,6 +33,7 @@ export default function StoreSelector() {
     const [loadingLocation, setLoadingLocation] = useState(false);
     const [locationError, setLocationError] = useState<string | null>(null);
     const [validationError, setValidationError] = useState<string | null>(null);
+    const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
 
     const handleStoreSelect = (storeId: string) => {
         updateStoreLastUsed(storeId, new Date().toISOString());
@@ -92,10 +94,50 @@ export default function StoreSelector() {
         startTrip(newStore.StoreID);
     };
 
-    // Sort stores by LastUsed descending
-    const sortedStores = [...stores].sort((a, b) =>
-        new Date(b.LastUsed).getTime() - new Date(a.LastUsed).getTime()
-    );
+    useEffect(() => {
+        if (!navigator.geolocation) return;
+
+        navigator.geolocation.getCurrentPosition(
+            ({ coords }) => setUserLocation({ lat: coords.latitude, lon: coords.longitude }),
+            (error) => console.warn('Unable to fetch user location for sorting', error),
+            { enableHighAccuracy: true, timeout: 5000 }
+        );
+    }, []);
+
+    const formatDistance = (distanceKm: number) => {
+        if (distanceKm < 1) {
+            return `${Math.round(distanceKm * 1000)} m away`;
+        }
+
+        return `${distanceKm.toFixed(1)} km away`;
+    };
+
+    const storeHasValidCoords = (store: Store) =>
+        Number.isFinite(store.GPS_Lat) &&
+        Number.isFinite(store.GPS_Lon) &&
+        (store.GPS_Lat !== 0 || store.GPS_Lon !== 0);
+
+    const sortedStores = useMemo(() => {
+        const byLastUsed = [...stores].sort(
+            (a, b) => new Date(b.LastUsed).getTime() - new Date(a.LastUsed).getTime()
+        );
+
+        if (!userLocation || !stores.length || !stores.every(storeHasValidCoords)) {
+            return byLastUsed.map((store) => ({ store }));
+        }
+
+        return stores
+            .map((store) => ({
+                store,
+                distanceKm: haversineDistanceKm(
+                    userLocation.lat,
+                    userLocation.lon,
+                    store.GPS_Lat,
+                    store.GPS_Lon
+                ),
+            }))
+            .sort((a, b) => a.distanceKm - b.distanceKm);
+    }, [stores, userLocation]);
 
     return (
         <Box sx={{ maxWidth: 600, mx: 'auto', p: 2 }}>
@@ -115,7 +157,7 @@ export default function StoreSelector() {
 
             {sortedStores.length > 0 ? (
                 <List sx={{ bgcolor: 'background.paper', borderRadius: 2 }}>
-                    {sortedStores.map((store) => (
+                    {sortedStores.map(({ store, distanceKm }) => (
                         <ListItem key={store.StoreID} disablePadding divider>
                             <ListItemButton onClick={() => handleStoreSelect(store.StoreID)}>
                                 <Box sx={{ mr: 2, display: 'flex', alignItems: 'center' }}>
@@ -123,7 +165,11 @@ export default function StoreSelector() {
                                 </Box>
                                 <ListItemText
                                     primary={store.StoreName}
-                                    secondary={store.LocationText}
+                                    secondary={
+                                        distanceKm
+                                            ? `${store.LocationText} • ${formatDistance(distanceKm)}`
+                                            : store.LocationText
+                                    }
                                     primaryTypographyProps={{ fontWeight: 'bold' }}
                                 />
                             </ListItemButton>
