@@ -8,7 +8,7 @@ import type { Product } from '../types';
 
 export default function ProductEntry() {
     const { addItem, currentStoreId } = useCartStore();
-    const { addProduct, getProductByBarcode, products } = useReferenceStore();
+    const { addProduct, getProductByBarcode, products, getLastPrice, recordLastPrice } = useReferenceStore();
 
     const [open, setOpen] = useState(false);
     const [tabIndex, setTabIndex] = useState(0); // 0 = Scan, 1 = Manual
@@ -22,6 +22,8 @@ export default function ProductEntry() {
     const [isLoose, setIsLoose] = useState(false);
     const [sizeValue, setSizeValue] = useState('');
     const [sizeUnit, setSizeUnit] = useState('g');
+    const [lastKnownPrice, setLastKnownPrice] = useState<number | null>(null);
+    const [lastKnownTimestamp, setLastKnownTimestamp] = useState<string | null>(null);
 
     const handleOpen = () => {
         setTabIndex(0);
@@ -45,23 +47,42 @@ export default function ProductEntry() {
         setIsLoose(false);
         setSizeValue('');
         setSizeUnit('g');
+        setLastKnownPrice(null);
+        setLastKnownTimestamp(null);
     };
 
     const onScanSuccess = useCallback((decodedText: string) => {
         setBarcode(decodedText);
+        setLastKnownPrice(null);
+        setLastKnownTimestamp(null);
         const existingProduct = getProductByBarcode(decodedText);
         if (existingProduct) {
             setName(existingProduct.Name);
             setIsLoose(existingProduct.IsLoose);
             setSizeValue(existingProduct.SizeValue?.toString() || '');
             setSizeUnit(existingProduct.SizeUnit || 'g');
+
+            if (currentStoreId) {
+                const lastPrice = getLastPrice(currentStoreId, existingProduct.ProductID);
+                if (lastPrice) {
+                    setPrice(lastPrice.unitPrice.toString());
+                    setLastKnownPrice(lastPrice.unitPrice);
+                    setLastKnownTimestamp(lastPrice.timestamp);
+                } else {
+                    setLastKnownPrice(null);
+                    setLastKnownTimestamp(null);
+                }
+            }
+        } else {
+            setLastKnownPrice(null);
+            setLastKnownTimestamp(null);
         }
         setTabIndex(1); // Switch to manual/confirm view
         if (scannerRef.current) {
             scannerRef.current.clear().catch(console.error);
             scannerRef.current = null;
         }
-    }, [getProductByBarcode]);
+    }, [currentStoreId, getLastPrice, getProductByBarcode]);
 
     const onScanFailure = useCallback(() => {
         // Silently ignore scan failures
@@ -137,6 +158,7 @@ export default function ProductEntry() {
         const unitPrice = isLoose ? priceValue / quantityValue : priceValue;
 
         addItem(product, currentStoreId, quantityValue, unitPrice);
+        recordLastPrice(currentStoreId, product.ProductID, unitPrice, new Date().toISOString());
         handleClose();
     };
 
@@ -144,6 +166,10 @@ export default function ProductEntry() {
     const helperText = isLoose
         ? 'Enter the total from the scale/deli. Unit price will be calculated.'
         : 'Price per individual unit or package.';
+
+    const formattedLastSeen = lastKnownTimestamp && !Number.isNaN(new Date(lastKnownTimestamp).getTime())
+        ? new Date(lastKnownTimestamp).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+        : null;
 
     const isAddDisabled = !name || !price || !quantity || Number(quantity) <= 0 || Number(price) <= 0;
 
@@ -218,6 +244,12 @@ export default function ProductEntry() {
                                     fullWidth
                                 />
                             </Box>
+
+                            {lastKnownPrice !== null && (
+                                <Typography variant="caption" color="text.secondary">
+                                    Last seen price: ${lastKnownPrice.toFixed(2)}{formattedLastSeen ? ` on ${formattedLastSeen}` : ''}
+                                </Typography>
+                            )}
 
                             <FormControlLabel
                                 control={<Switch checked={isLoose} onChange={(e) => setIsLoose(e.target.checked)} />}
