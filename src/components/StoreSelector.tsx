@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
     Box,
     Button,
@@ -21,7 +21,7 @@ import StoreIcon from '@mui/icons-material/Store';
 import { useReferenceStore } from '../store/useReferenceStore';
 import { useCartStore } from '../store/useCartStore';
 import type { Store } from '../types';
-import { haversineDistanceKm } from '../utils/geo';
+import { haversineDistance, formatDistance } from '../utils/geo';
 
 export default function StoreSelector() {
     const { stores, addStore, storeExists, updateStoreLastUsed } = useReferenceStore();
@@ -33,7 +33,38 @@ export default function StoreSelector() {
     const [loadingLocation, setLoadingLocation] = useState(false);
     const [locationError, setLocationError] = useState<string | null>(null);
     const [validationError, setValidationError] = useState<string | null>(null);
+
+    // GPS State
     const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
+    const [gpsStatus, setGpsStatus] = useState<'acquiring' | 'ready' | 'denied' | 'unavailable'>('acquiring');
+
+    useEffect(() => {
+        if (!navigator.geolocation) {
+            setGpsStatus('unavailable');
+            return;
+        }
+
+        const watchId = navigator.geolocation.watchPosition(
+            (position) => {
+                setUserLocation({
+                    lat: position.coords.latitude,
+                    lon: position.coords.longitude,
+                });
+                setGpsStatus('ready');
+            },
+            (error) => {
+                console.log('Location access denied or error:', error);
+                setGpsStatus('denied');
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 5000
+            }
+        );
+
+        return () => navigator.geolocation.clearWatch(watchId);
+    }, []);
 
     const handleStoreSelect = (storeId: string) => {
         updateStoreLastUsed(storeId, new Date().toISOString());
@@ -94,55 +125,55 @@ export default function StoreSelector() {
         startTrip(newStore.StoreID);
     };
 
-    useEffect(() => {
-        if (!navigator.geolocation) return;
+    // Calculate distances and sort
+    const storesWithDistance = stores.map((store) => {
+        let distance = Infinity;
 
-        navigator.geolocation.getCurrentPosition(
-            ({ coords }) => setUserLocation({ lat: coords.latitude, lon: coords.longitude }),
-            (error) => console.warn('Unable to fetch user location for sorting', error),
-            { enableHighAccuracy: true, timeout: 5000 }
-        );
-    }, []);
+        // Ensure coordinates are valid numbers
+        const sLat = Number(store.GPS_Lat);
+        const sLon = Number(store.GPS_Lon);
+        const validStoreCoords = !isNaN(sLat) && !isNaN(sLon) && (sLat !== 0 || sLon !== 0);
 
-    const formatDistance = (distanceKm: number) => {
-        if (distanceKm < 1) {
-            return `${Math.round(distanceKm * 1000)} m away`;
+        if (userLocation && validStoreCoords) {
+            distance = haversineDistance(userLocation.lat, userLocation.lon, sLat, sLon);
+        }
+        return { ...store, distance };
+    });
+
+    const sortedStores = storesWithDistance.sort((a, b) => {
+        // Primary Sort: Distance (if available)
+        if (userLocation && a.distance !== Infinity && b.distance !== Infinity) {
+            return a.distance - b.distance;
         }
 
-        return `${distanceKm.toFixed(1)} km away`;
+        // Secondary Sort: Push valid distances above Infinity ones
+        if (userLocation) {
+            if (a.distance !== Infinity && b.distance === Infinity) return -1;
+            if (a.distance === Infinity && b.distance !== Infinity) return 1;
+        }
+
+        // Fallback: LastUsed descending
+        return new Date(b.LastUsed).getTime() - new Date(a.LastUsed).getTime();
+    });
+
+    const getGpsStatusText = () => {
+        switch (gpsStatus) {
+            case 'acquiring': return 'Acquiring GPS...';
+            case 'ready': return 'Sorted by distance';
+            case 'denied': return 'GPS disabled - Sorted by recent';
+            case 'unavailable': return 'GPS unavailable';
+            default: return '';
+        }
     };
-
-    const storeHasValidCoords = (store: Store) =>
-        Number.isFinite(store.GPS_Lat) &&
-        Number.isFinite(store.GPS_Lon) &&
-        (store.GPS_Lat !== 0 || store.GPS_Lon !== 0);
-
-    const sortedStores = useMemo(() => {
-        const byLastUsed = [...stores].sort(
-            (a, b) => new Date(b.LastUsed).getTime() - new Date(a.LastUsed).getTime()
-        );
-
-        if (!userLocation || !stores.length || !stores.every(storeHasValidCoords)) {
-            return byLastUsed.map((store) => ({ store }));
-        }
-
-        return stores
-            .map((store) => ({
-                store,
-                distanceKm: haversineDistanceKm(
-                    userLocation.lat,
-                    userLocation.lon,
-                    store.GPS_Lat,
-                    store.GPS_Lon
-                ),
-            }))
-            .sort((a, b) => a.distanceKm - b.distanceKm);
-    }, [stores, userLocation]);
 
     return (
         <Box sx={{ maxWidth: 600, mx: 'auto', p: 2 }}>
-            <Typography variant="h5" gutterBottom align="center" sx={{ mb: 3 }}>
+            <Typography variant="h5" gutterBottom align="center" sx={{ mb: 1 }}>
                 Where are you shopping?
+            </Typography>
+
+            <Typography variant="caption" display="block" align="center" sx={{ mb: 3, color: 'text.secondary' }}>
+                {getGpsStatusText()}
             </Typography>
 
             <Button
@@ -157,7 +188,7 @@ export default function StoreSelector() {
 
             {sortedStores.length > 0 ? (
                 <List sx={{ bgcolor: 'background.paper', borderRadius: 2 }}>
-                    {sortedStores.map(({ store, distanceKm }) => (
+                    {sortedStores.map((store) => (
                         <ListItem key={store.StoreID} disablePadding divider>
                             <ListItemButton onClick={() => handleStoreSelect(store.StoreID)}>
                                 <Box sx={{ mr: 2, display: 'flex', alignItems: 'center' }}>
@@ -166,9 +197,18 @@ export default function StoreSelector() {
                                 <ListItemText
                                     primary={store.StoreName}
                                     secondary={
-                                        distanceKm
-                                            ? `${store.LocationText} • ${formatDistance(distanceKm)}`
-                                            : store.LocationText
+                                        <>
+                                            {store.LocationText}
+                                            {store.distance !== Infinity && (
+                                                <Typography
+                                                    component="span"
+                                                    variant="caption"
+                                                    sx={{ ml: 1, color: 'success.main', fontWeight: 'bold' }}
+                                                >
+                                                    ({formatDistance(store.distance)})
+                                                </Typography>
+                                            )}
+                                        </>
                                     }
                                     primaryTypographyProps={{ fontWeight: 'bold' }}
                                 />
