@@ -20,12 +20,14 @@ import AddLocationIcon from '@mui/icons-material/AddLocation';
 import StoreIcon from '@mui/icons-material/Store';
 import { useReferenceStore } from '../store/useReferenceStore';
 import { useCartStore } from '../store/useCartStore';
+import { useToastStore } from '../store/useToastStore';
 import type { Store } from '../types';
 import { haversineDistance, formatDistance } from '../utils/geo';
 
 export default function StoreSelector() {
     const { stores, addStore, storeExists, updateStoreLastUsed } = useReferenceStore();
     const { startTrip } = useCartStore();
+    const { showSuccess } = useToastStore();
 
     const [open, setOpen] = useState(false);
     const [newStoreName, setNewStoreName] = useState('');
@@ -120,6 +122,7 @@ export default function StoreSelector() {
             LastUsed: new Date().toISOString(),
         };
         addStore(newStore);
+        showSuccess(`Store "${newStoreName}" saved!`);
         setLoadingLocation(false);
         setOpen(false);
         startTrip(newStore.StoreID);

@@ -4,23 +4,59 @@ import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import { useCartStore } from '../store/useCartStore';
 import { useReferenceStore } from '../store/useReferenceStore';
+import { useDebugStore } from '../store/useDebugStore';
+import { useToastStore } from '../store/useToastStore';
 import StoreSelector from './StoreSelector';
 import Cart from './Cart';
 import ProductEntry from './ProductEntry';
+import DebugPanel from './DebugPanel';
 import { api, SyncError } from '../services/api';
+
+const APP_VERSION = '1.0.0'; // TODO: Sync with package.json or use env var
 
 export default function Layout() {
     const { currentStoreId, tripId, items, clearCart } = useCartStore();
     const { stores, setStores, setProducts, setLastPrices } = useReferenceStore();
+    const { logError, setDebugPanelOpen } = useDebugStore();
+    const { currentToast, clearCurrentToast } = useToastStore();
+
     const [syncing, setSyncing] = useState(false);
     const [health, setHealth] = useState<{ status: 'idle' | 'ok' | 'error', message?: string }>({ status: 'idle' });
-    const [snackbar, setSnackbar] = useState<{ open: boolean, message: string, severity: 'success' | 'error' }>({
-        open: false,
-        message: '',
-        severity: 'success'
-    });
+
+    // Debug panel tap counter
+    const [versionTapCount, setVersionTapCount] = useState(0);
+    const [tapTimeout, setTapTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
+
+    // GPS state for debug panel
+    const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
+    const [gpsStatus, setGpsStatus] = useState<'acquiring' | 'ready' | 'denied' | 'unavailable'>('acquiring');
 
 
+
+    // GPS tracking for debug panel
+    useEffect(() => {
+        if (!navigator.geolocation) {
+            setGpsStatus('unavailable');
+            return;
+        }
+
+        const watchId = navigator.geolocation.watchPosition(
+            (position) => {
+                setUserLocation({
+                    lat: position.coords.latitude,
+                    lon: position.coords.longitude,
+                });
+                setGpsStatus('ready');
+            },
+            (error) => {
+                console.log('Location access denied or error:', error);
+                setGpsStatus('denied');
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
+        );
+
+        return () => navigator.geolocation.clearWatch(watchId);
+    }, []);
 
     useEffect(() => {
         let active = true;
@@ -59,6 +95,7 @@ export default function Layout() {
                     }
                 } catch (fetchErr) {
                     console.warn('Failed to fetch initial data:', fetchErr);
+                    logError('Failed to fetch initial data', fetchErr as Error, 'Layout init');
                     // Don't block the UI, just log it. User can still add new stores.
                 }
 
@@ -68,6 +105,7 @@ export default function Layout() {
                     ? `${error.message}${error.responseBody ? ` Response: ${error.responseBody.slice(0, 120)}` : ''}`
                     : (error as Error).message;
                 setHealth({ status: 'error', message });
+                logError('Health check failed', error as Error, 'Layout init');
             }
         };
 
@@ -76,7 +114,7 @@ export default function Layout() {
         return () => {
             active = false;
         };
-    }, [setStores, setProducts, setLastPrices]);
+    }, [setStores, setProducts, setLastPrices, logError]);
 
     const handleSync = async () => {
         if (!tripId || !currentStoreId) return;
@@ -87,7 +125,7 @@ export default function Layout() {
             const timestamp = new Date().toISOString();
 
             await api.syncTrip(tripId, currentStoreId, items, currentStore, timestamp);
-            setSnackbar({ open: true, message: 'Trip synced successfully!', severity: 'success' });
+            // Toast is shown by useToastStore in StoreSelector or elsewhere
             // Delay clearing to show success state
             setTimeout(() => {
                 clearCart();
@@ -104,8 +142,23 @@ export default function Layout() {
                 message = error.message;
             }
 
-            setSnackbar({ open: true, message, severity: 'error' });
+            logError(message, error as Error, 'Sync trip');
             setSyncing(false);
+        }
+    };
+
+    const handleVersionTap = () => {
+        if (tapTimeout) clearTimeout(tapTimeout);
+
+        const newCount = versionTapCount + 1;
+        setVersionTapCount(newCount);
+
+        if (newCount >= 5) {
+            setDebugPanelOpen(true);
+            setVersionTapCount(0);
+        } else {
+            const timeout = setTimeout(() => setVersionTapCount(0), 2000);
+            setTapTimeout(timeout);
         }
     };
 
@@ -169,15 +222,43 @@ export default function Layout() {
                 )}
             </Container>
 
-            <Snackbar
-                open={snackbar.open}
-                autoHideDuration={6000}
-                onClose={() => setSnackbar({ ...snackbar, open: false })}
+            {/* Footer with version */}
+            <Box
+                component="footer"
+                sx={{
+                    py: 2,
+                    px: 2,
+                    mt: 'auto',
+                    backgroundColor: 'background.paper',
+                    borderTop: 1,
+                    borderColor: 'divider',
+                    textAlign: 'center',
+                }}
             >
-                <Alert severity={snackbar.severity} sx={{ width: '100%' }}>
-                    {snackbar.message}
+                <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    onClick={handleVersionTap}
+                    sx={{ cursor: 'pointer', userSelect: 'none' }}
+                >
+                    Grocery Companion v{APP_VERSION}
+                </Typography>
+            </Box>
+
+            {/* Toast Notifications */}
+            <Snackbar
+                open={!!currentToast}
+                autoHideDuration={4000}
+                onClose={clearCurrentToast}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            >
+                <Alert severity={currentToast?.severity || 'info'} sx={{ width: '100%' }} onClose={clearCurrentToast}>
+                    {currentToast?.message}
                 </Alert>
             </Snackbar>
+
+            {/* Debug Panel */}
+            <DebugPanel userLocation={userLocation} gpsStatus={gpsStatus} />
         </Box>
     );
 }

@@ -4,11 +4,13 @@ import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { useCartStore } from '../store/useCartStore';
 import { useReferenceStore } from '../store/useReferenceStore';
+import { useToastStore } from '../store/useToastStore';
 import type { Product } from '../types';
 
 export default function ProductEntry() {
     const { addItem, currentStoreId } = useCartStore();
     const { addProduct, getProductByBarcode, products, getLastPrice, recordLastPrice } = useReferenceStore();
+    const { showSuccess } = useToastStore();
 
     const [open, setOpen] = useState(false);
     const [tabIndex, setTabIndex] = useState(0); // 0 = Scan, 1 = Manual
@@ -159,6 +161,7 @@ export default function ProductEntry() {
 
         addItem(product, currentStoreId, quantityValue, unitPrice);
         recordLastPrice(currentStoreId, product.ProductID, unitPrice, new Date().toISOString());
+        showSuccess(`Added ${name} to cart`);
         handleClose();
     };
 
