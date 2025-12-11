@@ -1,3 +1,5 @@
+<img src="https://github.com/user-attachments/assets/e9d2f188-2191-4f6b-aa21-4db98cfaea68" width="20%" alt="Screenshot_20251210_140612_Chrome">
+
 # Personal Grocery Companion
 
 A Progressive Web App (PWA) to track real-time grocery spend against a budget, utilizing Google Sheets as a free, scalable backend for purchase history and cost-of-living analysis.
@@ -5,14 +7,25 @@ A Progressive Web App (PWA) to track real-time grocery spend against a budget, u
 ## Features
 
 - 🏪 **Store Management**: Track multiple store locations with GPS coordinates
-- 🛒 **Real-time Cart**: Running total updates instantly as you shop
+   - Remembers previous stores
+   - Displays stores to the user as a list, ordered nearest to furthest (calculated in real-time)
+- 🛒 **Real-time Cart**: Running total updates instantly as user shops
+   - Helps with budgeting, by knowing how much user will spend before they get to the til
 - 📱 **Barcode Scanning**: Add items via camera or manual entry
-- 📊 **Google Sheets Backend**: All purchase history logged to your own spreadsheet
+   - Remembers previously scanned SKUs & their metadata
+   - Remembers most recent price of a given SKU to increase awareness of price fluctuations
+- 📊 **Google Sheets Backend**: All purchase history logged to user's own spreadsheet
+   - Provides high level of control & visibility of user's own data in a familiar interface
+   - Low-cost (free) database & backend
 - 💾 **Offline First**: Works without internet, syncs when connected
 - 🎨 **Modern UI**: Dark mode with Material UI components
 
+
 ## Tech Stack
 
+<details>
+
+    
 - **Frontend**: React + TypeScript + Vite
 - **UI Library**: Material UI v5
 - **State Management**: Zustand
@@ -20,9 +33,14 @@ A Progressive Web App (PWA) to track real-time grocery spend against a budget, u
 - **Backend**: Google Apps Script (Web App)
 - **Database**: Google Sheets
 
+
+</details>
+
 ## Getting Started
 
-### Prerequisites
+<details>
+
+    ### Prerequisites
 
 - Node.js 20.19+ or 22.12+
 - A Google account (for Google Sheets backend)
@@ -75,6 +93,8 @@ The workflow expects `GCP_SA_KEY` and `GCP_BUCKET_NAME` to be configured as repo
 e deploy job will still build the app but will skip the authenticated upload step and report that deployment was skipped.
 
 See `deployment_guide.md` for detailed setup instructions.
+
+</details>
 
 ## License
 
